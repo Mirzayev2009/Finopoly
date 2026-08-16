@@ -1,0 +1,21 @@
+.logo {
+  display: inline-block;
+  font-family: var(--font-display);
+  font-style: italic;
+  font-weight: 600;
+  letter-spacing: -0.02em;
+  color: var(--color-text);
+}
+
+.sm {
+  font-size: var(--text-lg);
+}
+
+.md {
+  font-size: var(--text-2xl);
+}
+
+.lg {
+  font-size: clamp(2.5rem, 6vw, 4rem);
+  line-height: 1;
+}

@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import { Navigate } from 'react-router-dom';
 import { supabase } from '../lib/supabase.js';
+import PageLoader from '../components/PageLoader.jsx';
 
 export default function AuthCallback() {
   const [ready, setReady] = useState(false);
@@ -17,7 +18,7 @@ export default function AuthCallback() {
     });
   }, []);
 
-  if (!ready) return <p>Signing in…</p>;
+  if (!ready) return <PageLoader label="Signing in…" />;
   if (failed) return <Navigate to="/login" replace />;
   return <Navigate to="/lobby" replace />;
 }
