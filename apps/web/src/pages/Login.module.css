@@ -1,0 +1,75 @@
+.page {
+  min-height: 100vh;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: #0f172a;
+}
+
+.card {
+  width: 320px;
+  padding: 32px;
+  border-radius: 12px;
+  background: #1e293b;
+  color: #f8fafc;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.title {
+  margin: 0 0 8px;
+  font-size: 24px;
+}
+
+.form {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.input {
+  padding: 10px 12px;
+  border-radius: 6px;
+  border: 1px solid #334155;
+  background: #0f172a;
+  color: #f8fafc;
+  font-size: 14px;
+}
+
+.primaryButton {
+  padding: 10px 12px;
+  border-radius: 6px;
+  border: none;
+  background: #6366f1;
+  color: #fff;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.primaryButton:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.divider {
+  text-align: center;
+  color: #64748b;
+  font-size: 12px;
+}
+
+.oauthButton {
+  padding: 10px 12px;
+  border-radius: 6px;
+  border: 1px solid #334155;
+  background: transparent;
+  color: #f8fafc;
+  cursor: pointer;
+  font-size: 14px;
+}
+
+.error {
+  color: #f87171;
+  font-size: 13px;
+  margin: 0;
+}

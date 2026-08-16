@@ -1,0 +1,17 @@
+{
+  "name": "estate",
+  "private": true,
+  "type": "module",
+  "engines": {
+    "node": ">=20"
+  },
+  "scripts": {
+    "dev": "concurrently -n server,web -c blue,green \"pnpm --filter @estate/server dev\" \"pnpm --filter @estate/web dev\"",
+    "dev:server": "pnpm --filter @estate/server dev",
+    "dev:web": "pnpm --filter @estate/web dev",
+    "test": "pnpm --filter @estate/engine test"
+  },
+  "devDependencies": {
+    "concurrently": "^9.1.0"
+  }
+}
