@@ -52,6 +52,14 @@ export function withAuth(handler) {
       return;
     }
 
-    await handler(req, res);
+    try {
+      await handler(req, res);
+    } catch (err) {
+      // Without this, an uncaught error crashes the whole function and
+      // Vercel's platform-level error response carries none of the CORS
+      // headers set above — the browser then reports a confusing CORS
+      // failure instead of the real error.
+      res.status(500).json({ error: err.message || 'INTERNAL_ERROR' });
+    }
   };
 }
