@@ -9,32 +9,41 @@ describe('engine smoke test', () => {
 
   it('creates an initial state with the first player on the move', () => {
     const state = createInitialState(players);
-    expect(state.turn.currentPlayerId).toBe('p1');
+    expect(state.turn.playerId).toBe('p1');
+    expect(state.phase).toBe('ROLL');
     expect(state.players).toHaveLength(2);
+    expect(state.players[0].cash).toBe(1500);
     expect(state.pendingAuction).toBeNull();
     expect(state.pendingTrades).toEqual([]);
+    expect(state.winnerId).toBeNull();
+    expect(state.decks.chance).toHaveLength(16);
+    expect(state.decks.chest).toHaveLength(16);
   });
 
   it('END_TURN advances the turn to the next player', () => {
     const state = createInitialState(players);
-    const result = applyAction(state, 'p1', { type: 'END_TURN', payload: {}, at: 1 });
+    const manageState = {
+      ...state,
+      phase: 'MANAGE',
+      turn: { ...state.turn, hasRolled: true, dice: [4, 6] },
+    };
+
+    const result = applyAction(manageState, 'p1', { type: 'END_TURN', payload: {}, at: 2 });
 
     expect(result.error).toBeNull();
-    expect(result.state.turn.currentPlayerId).toBe('p2');
-    expect(result.events).toEqual([
-      { type: 'TURN_ENDED', payload: { previousPlayerId: 'p1', nextPlayerId: 'p2' }, at: 1 },
-    ]);
+    expect(result.state.turn.playerId).toBe('p2');
+    expect(result.state.phase).toBe('ROLL');
   });
 
-  it('returns NOT_IMPLEMENTED for every other action type', () => {
+  it('returns INVALID_ACTION for an unrecognized action type', () => {
     const state = createInitialState(players);
     const result = applyAction(state, 'p1', {
-      type: 'ROLL_DICE',
-      payload: { dice: [3, 4] },
+      type: 'NOT_A_REAL_ACTION',
+      payload: {},
       at: 1,
     });
 
-    expect(result.error).toBe('NOT_IMPLEMENTED');
+    expect(result.error).toBe('INVALID_ACTION');
     expect(result.state).toBe(state);
   });
 });

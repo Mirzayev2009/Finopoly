@@ -6,9 +6,11 @@
   "scripts": {
     "dev": "vite",
     "build": "vite build",
-    "preview": "vite preview"
+    "preview": "vite preview",
+    "test": "vitest run"
   },
   "dependencies": {
+    "@estate/board": "workspace:*",
     "@phosphor-icons/react": "^2.1.7",
     "@supabase/supabase-js": "^2.45.4",
     "react": "^18.3.1",
@@ -17,6 +19,7 @@
   },
   "devDependencies": {
     "@vitejs/plugin-react": "^4.3.3",
-    "vite": "^5.4.10"
+    "vite": "^5.4.10",
+    "vitest": "^2.1.4"
   }
 }

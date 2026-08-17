@@ -1,6 +1,7 @@
--- Run once in the Supabase SQL Editor for this project.
--- Reference copy of the schema documented inline in src/repo/*.js —
--- not applied automatically by anything in this repo.
+-- Run in the Supabase SQL Editor for this project. Safe to re-run —
+-- every statement is idempotent. Reference copy of the schema documented
+-- inline in src/repo/*.js — not applied automatically by anything in this
+-- repo.
 
 create table if not exists games (
   id uuid primary key default gen_random_uuid(),
@@ -45,15 +46,32 @@ alter table game_players enable row level security;
 alter table events enable row level security;
 alter table profiles enable row level security;
 
+drop policy if exists "authenticated can read games" on games;
 create policy "authenticated can read games" on games
   for select to authenticated using (true);
 
+drop policy if exists "authenticated can read game_players" on game_players;
 create policy "authenticated can read game_players" on game_players
   for select to authenticated using (true);
 
+drop policy if exists "users can read own profile" on profiles;
 create policy "users can read own profile" on profiles
   for select to authenticated using (id = auth.uid());
 
 -- Realtime: apps/web subscribes to postgres_changes on these two tables.
-alter publication supabase_realtime add table games;
-alter publication supabase_realtime add table game_players;
+do $$
+begin
+  if not exists (
+    select 1 from pg_publication_tables
+    where pubname = 'supabase_realtime' and schemaname = 'public' and tablename = 'games'
+  ) then
+    alter publication supabase_realtime add table games;
+  end if;
+
+  if not exists (
+    select 1 from pg_publication_tables
+    where pubname = 'supabase_realtime' and schemaname = 'public' and tablename = 'game_players'
+  ) then
+    alter publication supabase_realtime add table game_players;
+  end if;
+end $$;

@@ -31,7 +31,8 @@ export default withAuth(async (req, res) => {
     return;
   }
 
-  const initialState = createInitialState(players.map((p) => ({ id: p.user_id, name: p.name })));
+  // Date.now() lives here (I/O boundary), never inside the pure engine.
+  const initialState = createInitialState(players.map((p) => ({ id: p.user_id, name: p.name })), Date.now());
   const updated = await updateGameFields(gameId, { status: 'active', state: initialState });
 
   // apps/web learns about this via its Realtime subscription on the games

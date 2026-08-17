@@ -1,4 +1,4 @@
-import { applyAction } from '@estate/engine';
+import { ROLL, applyAction } from '@estate/engine';
 import { withAuth } from '../../src/auth.js';
 import { loadGame, saveGame, VersionConflictError } from '../../src/repo/games.js';
 import { appendEvent } from '../../src/repo/events.js';
@@ -22,31 +22,38 @@ export default withAuth(async (req, res) => {
   }
 });
 
+function rollDice() {
+  return [1 + Math.floor(Math.random() * 6), 1 + Math.floor(Math.random() * 6)];
+}
+
 /**
  * Server flow for every submitted action: verify JWT (done by withAuth) ->
  * load game -> assert it's this player's turn -> applyAction -> save with
  * a version guard (reload + retry once on conflict, then error) -> append
  * event -> return the new state.
- *
- * Dice, when ROLL_DICE is implemented, are rolled here (server-side,
- * e.g. `[1 + Math.floor(Math.random() * 6), ...]`) and attached to
- * action.payload.dice before calling applyAction — never trusted from the
- * client.
  */
 async function submitAction(gameId, userId, action, isRetry = false) {
   const row = await loadGame(gameId);
   if (!row) throw new Error('GAME_NOT_FOUND');
 
-  if (row.state.turn.currentPlayerId !== userId) {
+  if (row.state.turn.playerId !== userId) {
     throw new Error('NOT_YOUR_TURN');
   }
 
-  const { state: nextState, events, error } = applyAction(row.state, userId, action);
+  // Dice are rolled here, server-side, on every attempt (including
+  // retries) — any payload.dice sent by the client is discarded and
+  // overwritten. The client never generates or influences the roll.
+  const preparedAction =
+    action && action.type === ROLL
+      ? { ...action, payload: { ...action.payload, dice: rollDice() } }
+      : action;
+
+  const { state: nextState, events, error } = applyAction(row.state, userId, preparedAction);
   if (error) throw new Error(error);
 
   try {
     const saved = await saveGame(gameId, nextState, row.version);
-    await appendEvent(gameId, saved.version, userId, action);
+    await appendEvent(gameId, saved.version, userId, preparedAction);
     return { state: saved.state, version: saved.version, events };
   } catch (err) {
     if (err instanceof VersionConflictError && !isRetry) {
