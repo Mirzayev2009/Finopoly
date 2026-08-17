@@ -2,11 +2,7 @@ import dotenv from 'dotenv';
 
 dotenv.config();
 
-const REQUIRED_VARS = [
-  'SUPABASE_URL',
-  'SUPABASE_SERVICE_ROLE_KEY',
-  'SUPABASE_JWT_SECRET',
-];
+const REQUIRED_VARS = ['SUPABASE_URL', 'SUPABASE_SERVICE_ROLE_KEY'];
 
 for (const key of REQUIRED_VARS) {
   if (!process.env[key]) {
@@ -19,5 +15,4 @@ export const config = Object.freeze({
   clientOrigin: process.env.CLIENT_ORIGIN || 'http://localhost:5173',
   supabaseUrl: process.env.SUPABASE_URL,
   supabaseServiceRoleKey: process.env.SUPABASE_SERVICE_ROLE_KEY,
-  supabaseJwtSecret: process.env.SUPABASE_JWT_SECRET,
 });
