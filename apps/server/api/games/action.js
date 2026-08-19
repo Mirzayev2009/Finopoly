@@ -1,4 +1,4 @@
-import { ROLL, applyAction } from '@estate/engine';
+import { applyAction } from '@estate/engine';
 import { withAuth } from '../../src/auth.js';
 import { loadGame, saveGame, VersionConflictError } from '../../src/repo/games.js';
 import { appendEvent } from '../../src/repo/events.js';
@@ -28,23 +28,20 @@ function rollDice() {
 
 /**
  * Server flow for every submitted action: verify JWT (done by withAuth) ->
- * load game -> assert it's this player's turn -> applyAction -> save with
- * a version guard (reload + retry once on conflict, then error) -> append
- * event -> return the new state.
+ * load game -> applyAction (which itself enforces role/team/phase
+ * authorization — there's no single "whose turn" concept anymore, multiple
+ * roles act independently) -> save with a version guard (reload + retry
+ * once on conflict, then error) -> append event -> return the new state.
  */
 async function submitAction(gameId, userId, action, isRetry = false) {
   const row = await loadGame(gameId);
   if (!row) throw new Error('GAME_NOT_FOUND');
 
-  if (row.state.turn.playerId !== userId) {
-    throw new Error('NOT_YOUR_TURN');
-  }
-
   // Dice are rolled here, server-side, on every attempt (including
   // retries) — any payload.dice sent by the client is discarded and
   // overwritten. The client never generates or influences the roll.
   const preparedAction =
-    action && action.type === ROLL
+    action && action.type === 'ROLL'
       ? { ...action, payload: { ...action.payload, dice: rollDice() } }
       : action;
 

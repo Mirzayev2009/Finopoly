@@ -14,9 +14,6 @@ importers:
 
   apps/server:
     dependencies:
-      '@estate/board':
-        specifier: workspace:*
-        version: link:../../packages/board
       '@estate/engine':
         specifier: workspace:*
         version: link:../../packages/engine
@@ -32,9 +29,12 @@ importers:
 
   apps/web:
     dependencies:
-      '@estate/board':
+      '@estate/content':
         specifier: workspace:*
-        version: link:../../packages/board
+        version: link:../../packages/content
+      '@estate/engine':
+        specifier: workspace:*
+        version: link:../../packages/engine
       '@phosphor-icons/react':
         specifier: ^2.1.7
         version: 2.1.10(react-dom@18.3.1(react@18.3.1))(react@18.3.1)
@@ -61,9 +61,13 @@ importers:
         specifier: ^2.1.4
         version: 2.1.9(@types/node@26.2.0)(supports-color@8.1.1)
 
-  packages/board: {}
+  packages/content: {}
 
   packages/engine:
+    dependencies:
+      '@estate/content':
+        specifier: workspace:*
+        version: link:../content
     devDependencies:
       vitest:
         specifier: ^2.1.4

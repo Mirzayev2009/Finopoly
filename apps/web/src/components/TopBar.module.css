@@ -12,17 +12,8 @@
   gap: var(--space-4);
 }
 
-.email {
-  font-size: var(--text-sm);
-  color: var(--color-text-muted);
-}
-
 @media (max-width: 640px) {
   .bar {
     padding: var(--space-4) var(--space-5);
-  }
-
-  .email {
-    display: none;
   }
 }

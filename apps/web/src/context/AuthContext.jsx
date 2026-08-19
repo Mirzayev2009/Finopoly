@@ -1,11 +1,15 @@
-import { createContext, useContext, useEffect, useState } from 'react';
+import { createContext, useCallback, useContext, useEffect, useState } from 'react';
 import { supabase } from '../lib/supabase.js';
+
+const SERVER_URL = import.meta.env.VITE_SERVER_URL;
 
 const AuthContext = createContext(null);
 
 export function AuthProvider({ children }) {
   const [session, setSession] = useState(null);
   const [loading, setLoading] = useState(true);
+  const [profile, setProfile] = useState(null);
+  const [profileLoading, setProfileLoading] = useState(false);
 
   useEffect(() => {
     supabase.auth.getSession().then(({ data }) => {
@@ -20,6 +24,29 @@ export function AuthProvider({ children }) {
     return () => listener.subscription.unsubscribe();
   }, []);
 
+  const fetchProfile = useCallback(async (accessToken) => {
+    setProfileLoading(true);
+    try {
+      const res = await fetch(`${SERVER_URL}/api/profiles/me`, {
+        headers: { Authorization: `Bearer ${accessToken}` },
+      });
+      const data = await res.json();
+      setProfile(res.ok ? data.profile : null);
+    } catch {
+      setProfile(null);
+    } finally {
+      setProfileLoading(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    if (!session?.access_token) {
+      setProfile(null);
+      return;
+    }
+    fetchProfile(session.access_token);
+  }, [session?.user?.id, session?.access_token, fetchProfile]);
+
   async function signOut() {
     await supabase.auth.signOut();
   }
@@ -27,10 +54,9 @@ export function AuthProvider({ children }) {
   const value = {
     session,
     user: session?.user ?? null,
-    // Placeholder profile derived from the Supabase user. Richer profile
-    // data (display name etc.) is expected to come from GET /profiles/me
-    // once that flow is built out.
-    profile: session?.user ? { id: session.user.id, email: session.user.email } : null,
+    profile,
+    profileLoading,
+    refetchProfile: () => (session?.access_token ? fetchProfile(session.access_token) : Promise.resolve()),
     loading,
     signOut,
   };

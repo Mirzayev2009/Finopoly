@@ -1,8 +1,10 @@
 import { Navigate, Route, Routes } from 'react-router-dom';
 import Login from './pages/Login.jsx';
+import Signup from './pages/Signup.jsx';
 import AuthCallback from './pages/AuthCallback.jsx';
 import Lobby from './pages/Lobby.jsx';
-import Game from './pages/Game.jsx';
+import GamePlayer from './pages/GamePlayer.jsx';
+import GameHost from './pages/GameHost.jsx';
 import ProtectedRoute from './components/ProtectedRoute.jsx';
 
 export default function App() {
@@ -10,6 +12,7 @@ export default function App() {
     <Routes>
       <Route path="/" element={<Navigate to="/lobby" replace />} />
       <Route path="/login" element={<Login />} />
+      <Route path="/signup" element={<Signup />} />
       <Route path="/auth/callback" element={<AuthCallback />} />
       <Route
         path="/lobby"
@@ -20,10 +23,18 @@ export default function App() {
         }
       />
       <Route
-        path="/game/:gameId"
+        path="/game/:code"
         element={
           <ProtectedRoute>
-            <Game />
+            <GamePlayer />
+          </ProtectedRoute>
+        }
+      />
+      <Route
+        path="/game/:code/host"
+        element={
+          <ProtectedRoute>
+            <GameHost />
           </ProtectedRoute>
         }
       />

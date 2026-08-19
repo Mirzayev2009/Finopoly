@@ -57,14 +57,14 @@ export default function Lobby() {
         setHostId(data.host_id);
         setCode(data.code);
         if (data.status === 'active') {
-          navigate(`/game/${gameId}`, { state: { initialState: data.state } });
+          navigate(data.host_id === session?.user?.id ? `/game/${data.code}/host` : `/game/${data.code}`);
         }
       });
 
     const unsubPlayers = subscribeToPlayers(gameId, setPlayers);
     const unsubGame = subscribeToGame(gameId, (row) => {
       if (row.status === 'active') {
-        navigate(`/game/${gameId}`, { state: { initialState: row.state } });
+        navigate(row.host_id === session?.user?.id ? `/game/${row.code}/host` : `/game/${row.code}`);
       }
     });
 
@@ -93,7 +93,7 @@ export default function Lobby() {
     setError(null);
     setCreating(true);
     try {
-      const name = profile?.email || 'Player';
+      const name = profile?.display_name || profile?.email?.split('@')[0] || 'Player';
       const data = await callServer('/api/games/create', { name });
       setGameId(data.gameId);
       setCode(data.code);
@@ -110,7 +110,7 @@ export default function Lobby() {
     setError(null);
     setJoining(true);
     try {
-      const name = profile?.email || 'Player';
+      const name = profile?.display_name || profile?.email?.split('@')[0] || 'Player';
       const data = await callServer('/api/games/join', { code: joinCodeInput, name });
       setGameId(data.gameId);
     } catch (err) {

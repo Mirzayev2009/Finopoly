@@ -1,0 +1,35 @@
+.clock {
+  font-family: var(--font-mono);
+  font-variant-numeric: tabular-nums;
+  font-weight: 700;
+  color: var(--color-text);
+  letter-spacing: -0.02em;
+}
+
+.md {
+  font-size: var(--text-2xl);
+}
+
+.lg {
+  font-size: clamp(3.5rem, 9vw, 6.5rem);
+  line-height: 1;
+}
+
+.idle {
+  color: var(--color-text-faint);
+}
+
+.urgent {
+  color: var(--color-danger);
+  animation: pulse 1s ease-in-out infinite;
+}
+
+@keyframes pulse {
+  0%,
+  100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.5;
+  }
+}

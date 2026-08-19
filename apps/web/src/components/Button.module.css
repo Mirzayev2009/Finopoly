@@ -44,6 +44,12 @@
   font-size: var(--text-xs);
 }
 
+.lg {
+  height: 56px;
+  padding: 0 var(--space-8);
+  font-size: var(--text-lg);
+}
+
 .fullWidth {
   width: 100%;
 }

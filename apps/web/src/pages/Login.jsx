@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Navigate } from 'react-router-dom';
+import { Link, Navigate } from 'react-router-dom';
 import { Envelope, GithubLogo, GoogleLogo, LockKey, WarningCircle } from '@phosphor-icons/react';
 import { supabase } from '../lib/supabase.js';
 import { useAuth } from '../context/AuthContext.jsx';
@@ -121,6 +121,10 @@ export default function Login() {
               GitHub
             </Button>
           </div>
+
+          <p className={styles.subheading}>
+            Don&apos;t have an account? <Link to="/signup">Sign up</Link>
+          </p>
 
           {error ? (
             <div className={styles.errorBanner} role="alert">
