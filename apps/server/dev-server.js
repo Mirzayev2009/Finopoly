@@ -17,7 +17,18 @@ const API_DIR = path.join(__dirname, 'api');
 
 async function resolveHandler(pathname) {
   const relative = pathname.replace(/^\/api\/?/, '');
-  const filePath = path.join(API_DIR, `${relative}.js`);
+  let filePath = path.join(API_DIR, `${relative}.js`);
+
+  if (!existsSync(filePath)) {
+    const parts = relative.split('/');
+    if (parts.length > 1) {
+      const dynamicPath = path.join(API_DIR, parts[0], '[action].js');
+      if (existsSync(dynamicPath)) {
+        filePath = dynamicPath;
+      }
+    }
+  }
+
   if (!filePath.startsWith(API_DIR) || !existsSync(filePath)) return null;
 
   const mod = await import(pathToFileURL(filePath).href);
