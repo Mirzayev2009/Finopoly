@@ -2,39 +2,66 @@ import { Navigate, Route, Routes } from 'react-router-dom';
 import Login from './pages/Login.jsx';
 import Signup from './pages/Signup.jsx';
 import AuthCallback from './pages/AuthCallback.jsx';
-import Lobby from './pages/Lobby.jsx';
-import GamePlayer from './pages/GamePlayer.jsx';
-import GameHost from './pages/GameHost.jsx';
+import Select from './pages/Select.jsx';
+import RoomBoard from './pages/RoomBoard.jsx';
+import RoomHost from './pages/RoomHost.jsx';
+import Join from './pages/Join.jsx';
+import Team from './pages/Team.jsx';
+import Leaderboard from './pages/Leaderboard.jsx';
 import ProtectedRoute from './components/ProtectedRoute.jsx';
 
 export default function App() {
   return (
     <Routes>
-      <Route path="/" element={<Navigate to="/lobby" replace />} />
+      <Route path="/" element={<Navigate to="/select" replace />} />
       <Route path="/login" element={<Login />} />
       <Route path="/signup" element={<Signup />} />
       <Route path="/auth/callback" element={<AuthCallback />} />
       <Route
-        path="/lobby"
+        path="/select"
         element={
           <ProtectedRoute>
-            <Lobby />
+            <Select />
           </ProtectedRoute>
         }
       />
       <Route
-        path="/game/:code"
+        path="/room/:slug/board"
         element={
           <ProtectedRoute>
-            <GamePlayer />
+            <RoomBoard />
           </ProtectedRoute>
         }
       />
       <Route
-        path="/game/:code/host"
+        path="/room/:slug/host"
         element={
           <ProtectedRoute>
-            <GameHost />
+            <RoomHost />
+          </ProtectedRoute>
+        }
+      />
+      <Route
+        path="/join"
+        element={
+          <ProtectedRoute>
+            <Join />
+          </ProtectedRoute>
+        }
+      />
+      <Route
+        path="/team"
+        element={
+          <ProtectedRoute>
+            <Team />
+          </ProtectedRoute>
+        }
+      />
+      <Route
+        path="/leaderboard"
+        element={
+          <ProtectedRoute>
+            <Leaderboard />
           </ProtectedRoute>
         }
       />

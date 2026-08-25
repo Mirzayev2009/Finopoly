@@ -20,5 +20,5 @@ export default function AuthCallback() {
 
   if (!ready) return <PageLoader label="Signing in…" />;
   if (failed) return <Navigate to="/login" replace />;
-  return <Navigate to="/lobby" replace />;
+  return <Navigate to="/select" replace />;
 }

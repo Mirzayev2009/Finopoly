@@ -20,7 +20,7 @@ export default function Signup() {
   const [submitting, setSubmitting] = useState(false);
   const [checkEmail, setCheckEmail] = useState(false);
 
-  if (session) return <Navigate to="/lobby" replace />;
+  if (session) return <Navigate to="/select" replace />;
 
   async function handleSignup(e) {
     e.preventDefault();

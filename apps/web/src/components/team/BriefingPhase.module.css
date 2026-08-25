@@ -1,0 +1,58 @@
+.phase {
+  padding: var(--space-3);
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+}
+
+.empty {
+  padding: var(--space-4);
+  color: var(--text-2);
+  text-align: center;
+}
+
+.eraHeader {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.eraTitle {
+  font-size: var(--text-2xl);
+  font-weight: 700;
+  line-height: 1.1;
+}
+
+.eraYears {
+  font-size: var(--text-sm);
+  color: var(--text-3);
+  letter-spacing: 0.04em;
+}
+
+.summary {
+  font-size: var(--text-base);
+  line-height: 1.5;
+  color: var(--text-2);
+  margin: 0;
+}
+
+.sectionTitle {
+  font-size: var(--text-sm);
+  color: var(--text-3);
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  margin: var(--space-2) 0 0;
+}
+
+.questions {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  margin: 0;
+  padding-left: var(--space-3);
+}
+
+.question {
+  font-size: var(--text-base);
+  line-height: 1.4;
+}

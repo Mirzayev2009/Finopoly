@@ -19,7 +19,7 @@ export default function Login() {
   const [submitting, setSubmitting] = useState(false);
   const [oauthLoading, setOauthLoading] = useState(null);
 
-  if (session) return <Navigate to="/lobby" replace />;
+  if (session) return <Navigate to="/select" replace />;
 
   async function handlePasswordLogin(e) {
     e.preventDefault();

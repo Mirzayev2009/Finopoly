@@ -1,0 +1,157 @@
+.phase {
+  padding: var(--space-2) var(--space-3) var(--space-3);
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+}
+
+.deadline {
+  align-self: center;
+  font-size: var(--text-xl);
+  color: var(--text);
+}
+
+.cards {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+}
+
+.card {
+  width: 100%;
+  min-height: 88px;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  padding: var(--space-2);
+  background: var(--surface);
+  border: 2px solid var(--border);
+  border-radius: var(--radius);
+  color: var(--text);
+  text-align: left;
+  cursor: pointer;
+}
+.card:disabled {
+  opacity: 0.6;
+}
+
+.cardSelected {
+  border-color: var(--syndicate-color, var(--accent));
+}
+
+.cardType {
+  font-size: var(--text-xs);
+  color: var(--text-3);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+.cardName {
+  font-size: var(--text-lg);
+  font-weight: 700;
+}
+
+.cardReason {
+  font-size: var(--text-sm);
+  color: var(--text-2);
+  line-height: 1.4;
+}
+
+.betSection {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+  padding: var(--space-2);
+  background: var(--surface);
+  border-radius: var(--radius);
+}
+
+.betAmountRow {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+}
+
+.betLabel {
+  font-size: var(--text-sm);
+  color: var(--text-3);
+}
+
+.betAmount {
+  font-size: var(--text-xl);
+}
+
+.slider {
+  width: 100%;
+  height: 44px;
+  accent-color: var(--syndicate-color, var(--accent));
+}
+
+.chipRow {
+  display: flex;
+  gap: var(--space-1);
+}
+
+.chip {
+  flex: 1;
+  min-height: 44px;
+  background: var(--surface-2);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  color: var(--text);
+  font-family: var(--font-ui);
+  font-size: var(--text-sm);
+  cursor: pointer;
+}
+
+.submitButton {
+  min-height: 56px;
+  background: var(--syndicate-color, var(--accent));
+  border: none;
+  border-radius: var(--radius);
+  color: var(--bg);
+  font-family: var(--font-ui);
+  font-weight: 700;
+  font-size: var(--text-lg);
+  cursor: pointer;
+}
+.submitButton:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+
+.error {
+  color: var(--loss);
+  font-size: var(--text-sm);
+  text-align: center;
+}
+
+.takeOverPhase {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: var(--space-3);
+  padding: var(--space-4);
+  text-align: center;
+}
+
+.takeOverText {
+  font-size: var(--text-lg);
+  color: var(--text-2);
+  margin: 0;
+}
+
+.primaryButton {
+  min-height: 52px;
+  padding: 0 var(--space-4);
+  background: var(--syndicate-color, var(--accent));
+  border: none;
+  border-radius: var(--radius);
+  color: var(--bg);
+  font-family: var(--font-ui);
+  font-weight: 700;
+  font-size: var(--text-base);
+  cursor: pointer;
+}

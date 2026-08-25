@@ -1,0 +1,279 @@
+.page {
+  min-height: 100vh;
+  display: grid;
+  grid-template-columns: min(88vh, 62vw) 1fr;
+  gap: var(--space-3);
+  padding: var(--space-3);
+  background: var(--bg);
+}
+
+.error {
+  padding: var(--space-4);
+  color: var(--loss);
+  font-size: var(--text-lg);
+}
+
+.board {
+  display: grid;
+  grid-template-columns: repeat(11, 1fr);
+  grid-template-rows: repeat(11, 1fr);
+  aspect-ratio: 1 / 1;
+  width: min(88vh, 62vw);
+  gap: 2px;
+  background: var(--border);
+  border: 1px solid var(--border);
+}
+
+.corner {
+  grid-row: span 1;
+  grid-column: span 1;
+  background: var(--surface-2);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: var(--text-sm);
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  color: var(--accent);
+  text-align: center;
+}
+
+.newsSpace {
+  background: var(--surface);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--text-3);
+  font-size: var(--text-lg);
+  font-weight: 700;
+}
+
+.assetSpace {
+  position: relative;
+  background: var(--surface);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 2px;
+  overflow: hidden;
+}
+
+.groupBar {
+  position: absolute;
+  inset: 0 0 auto 0;
+  height: 3px;
+  background: var(--group-color);
+}
+
+.assetName {
+  font-size: 10px;
+  line-height: 1.15;
+  text-align: center;
+  color: var(--text-2);
+  padding: 0 2px;
+}
+
+.tokenGrid {
+  position: absolute;
+  bottom: 2px;
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 1px;
+}
+
+.token {
+  width: 12px;
+  height: 12px;
+  border-radius: 2px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 7px;
+  font-weight: 700;
+  color: var(--bg);
+}
+
+.center {
+  grid-row: 2 / 11;
+  grid-column: 2 / 11;
+  background: var(--bg);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.centerIdle {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--space-2);
+}
+
+.eraHeader {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 2px;
+  color: var(--text-3);
+}
+
+.eraTitle {
+  font-size: var(--text-sm);
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.eraYears {
+  font-size: var(--text-xs);
+}
+
+.turnLabel {
+  font-size: var(--text-sm);
+  letter-spacing: 0.08em;
+  color: var(--text-3);
+}
+
+.turnSyndicate {
+  font-size: var(--text-3xl);
+  font-weight: 700;
+}
+
+.dice {
+  display: flex;
+  gap: var(--space-2);
+}
+
+.die {
+  width: 56px;
+  height: 56px;
+  border-radius: var(--radius);
+  background: var(--surface-2);
+  border: 1px solid var(--border-hi);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: var(--text-xl);
+  transition: transform var(--motion-dice-tumble);
+}
+
+.centerCards {
+  display: flex;
+  gap: var(--space-2);
+  padding: var(--space-3);
+}
+
+.card {
+  position: relative;
+  width: 220px;
+  min-height: 260px;
+  background: var(--surface);
+  border: 1px solid var(--border-hi);
+  border-radius: var(--radius);
+  padding: var(--space-2);
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+}
+
+.cardType {
+  font-size: var(--text-xs);
+  color: var(--text-3);
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+}
+
+.cardName {
+  font-size: var(--text-lg);
+  font-weight: 700;
+}
+
+.cardReason {
+  font-size: var(--text-sm);
+  color: var(--text-2);
+  flex: 1;
+}
+
+.cardFlap {
+  align-self: center;
+  width: 48px;
+  height: 48px;
+  border-radius: 50%;
+  background: var(--surface-2);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--text-3);
+  font-size: var(--text-lg);
+  transition: transform var(--motion-card-flip);
+}
+
+.centerNews,
+.centerCorner {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--space-2);
+  padding: var(--space-4);
+  max-width: 640px;
+  text-align: center;
+}
+
+.newsGlyph {
+  font-size: var(--text-3xl);
+  color: var(--text-3);
+}
+
+.newsTitle {
+  font-size: var(--text-xl);
+  font-weight: 700;
+}
+
+.newsBody {
+  font-size: var(--text-base);
+  color: var(--text-2);
+  margin: 0;
+}
+
+.rail {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+}
+
+.standings {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+}
+
+.standingRow {
+  display: flex;
+  align-items: center;
+  gap: var(--space-1);
+  padding: var(--space-1);
+  background: var(--surface);
+  border-radius: var(--radius);
+  transition: transform var(--motion-flip);
+}
+
+.rank {
+  width: 20px;
+  color: var(--text-3);
+  font-family: var(--font-mono);
+}
+
+.chip {
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+}
+
+.name {
+  flex: 1;
+  font-size: var(--text-sm);
+}
+
+.cash {
+  font-size: var(--text-sm);
+}

@@ -1,0 +1,123 @@
+.phase {
+  padding: var(--space-3);
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+}
+
+.statRow {
+  display: flex;
+  gap: var(--space-2);
+}
+
+.stat {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding: var(--space-2);
+  background: var(--surface);
+  border-radius: var(--radius);
+}
+
+.statLabel {
+  font-size: var(--text-xs);
+  color: var(--text-3);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+.statValue {
+  font-size: var(--text-lg);
+  font-weight: 700;
+}
+
+.flagRow {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-1);
+}
+
+.flagChip {
+  padding: 4px var(--space-1);
+  background: var(--surface-2);
+  border: 1px solid var(--syndicate-color, var(--accent));
+  border-radius: 999px;
+  font-size: var(--text-xs);
+  color: var(--syndicate-color, var(--accent));
+}
+
+.turnBanner {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding: var(--space-2);
+  background: var(--surface);
+  border-radius: var(--radius);
+}
+
+.turnLabel {
+  font-size: var(--text-xs);
+  color: var(--text-3);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+.turnName {
+  font-size: var(--text-lg);
+  font-weight: 700;
+}
+
+.turnStatus {
+  font-size: var(--text-sm);
+  color: var(--text-2);
+}
+
+.sectionTitle {
+  font-size: var(--text-sm);
+  color: var(--text-3);
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  margin: 0;
+}
+
+.standings {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.standingRow {
+  display: flex;
+  align-items: center;
+  gap: var(--space-1);
+  min-height: 44px;
+  padding: 0 var(--space-1);
+  border-radius: var(--radius);
+}
+
+.standingMine {
+  background: var(--surface);
+}
+
+.rank {
+  width: 20px;
+  color: var(--text-3);
+  font-family: var(--font-mono);
+}
+
+.chip {
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  flex-shrink: 0;
+}
+
+.name {
+  flex: 1;
+  font-size: var(--text-base);
+}
+
+.cash {
+  font-size: var(--text-base);
+}

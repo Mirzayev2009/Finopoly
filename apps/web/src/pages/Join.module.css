@@ -1,0 +1,93 @@
+.page {
+  min-height: 100dvh;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--bg);
+  padding: var(--space-3);
+}
+
+.card {
+  width: 100%;
+  max-width: 420px;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+}
+
+.heading {
+  font-size: var(--text-xl);
+  color: var(--text);
+  margin: 0 0 var(--space-2);
+}
+
+.label {
+  font-size: var(--text-sm);
+  color: var(--text-2);
+  margin-top: var(--space-2);
+}
+
+.codeInput {
+  width: 100%;
+  min-height: 56px;
+  padding: 0 var(--space-2);
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  color: var(--text);
+  font-family: var(--font-mono);
+  font-size: var(--text-xl);
+  text-align: center;
+  letter-spacing: 0.2em;
+  text-transform: uppercase;
+}
+.codeInput:focus {
+  outline: none;
+  border-color: var(--accent);
+}
+
+.roleGroup {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+}
+
+.roleOption {
+  min-height: 44px;
+  padding: var(--space-2);
+  background: var(--surface);
+  border: 2px solid var(--border);
+  border-radius: var(--radius);
+  color: var(--text);
+  font-family: var(--font-ui);
+  font-size: var(--text-base);
+  text-align: left;
+  cursor: pointer;
+}
+
+.roleSelected {
+  border-color: var(--accent);
+}
+
+.primaryButton {
+  min-height: 52px;
+  margin-top: var(--space-3);
+  background: var(--accent);
+  border: none;
+  border-radius: var(--radius);
+  color: var(--bg);
+  font-family: var(--font-ui);
+  font-weight: 700;
+  font-size: var(--text-base);
+  cursor: pointer;
+}
+.primaryButton:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+
+.error {
+  color: var(--loss);
+  font-size: var(--text-sm);
+  margin: var(--space-1) 0 0;
+}

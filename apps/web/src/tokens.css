@@ -1,0 +1,91 @@
+/**
+ * Design tokens. Nothing literal (colors, spacing, motion durations) outside
+ * this file — every surface consumes these custom properties. Minimal, dark,
+ * high-contrast, editorial. The only saturated color anywhere outside this
+ * file is syndicate identity, asset group bars, and gain/loss, all of which
+ * are themselves tokens defined here.
+ */
+:root {
+  --bg: #0a0a0b;
+  --surface: #131316;
+  --surface-2: #1b1b20;
+  --border: #26262b;
+  --border-hi: #3a3a42;
+  --text: #fafafa;
+  --text-2: #a1a1aa;
+  --text-3: #6b6b75;
+  --accent: #e8b44a;
+  --gain: #34d399;
+  --loss: #f43f5e;
+
+  /* 8 muted group hues, legible at 3px width on --bg — match packages/content/board.js's groups */
+  --group-financials: #8fb3d9;
+  --group-consumer: #d99a8f;
+  --group-energy: #d9c08f;
+  --group-realestate: #9ad98f;
+  --group-tech: #8fd9cf;
+  --group-industrials: #b08fd9;
+  --group-macro: #d98fc0;
+  --group-crypto: #d98f9a;
+
+  --font-ui: 'Inter Tight', 'Geist', system-ui, -apple-system, sans-serif;
+  --font-mono: 'IBM Plex Mono', ui-monospace, 'SF Mono', monospace;
+
+  --text-xs: 12px;
+  --text-sm: 14px;
+  --text-base: 16px;
+  --text-lg: 20px;
+  --text-xl: 28px;
+  --text-2xl: 40px;
+  --text-3xl: 64px;
+  --text-4xl: 80px;
+
+  --space-1: 8px;
+  --space-2: 16px;
+  --space-3: 24px;
+  --space-4: 32px;
+  --space-5: 40px;
+  --space-6: 48px;
+
+  --radius: 6px;
+
+  --motion-state: 180ms ease-out;
+  --motion-board-step: 110ms ease-out;
+  --motion-dice-tumble: 600ms ease-out;
+  --motion-card-flip: 700ms ease-out;
+  --motion-flip: 400ms ease-out;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+body {
+  background: var(--bg);
+  color: var(--text);
+  font-family: var(--font-ui);
+  letter-spacing: -0.02em;
+  margin: 0;
+}
+
+h1, h2, h3, h4 {
+  letter-spacing: -0.02em;
+  margin: 0;
+}
+
+.tabular-num,
+.money,
+.timer,
+.percentage,
+.dice,
+.count {
+  font-family: var(--font-mono);
+  font-variant-numeric: tabular-nums;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation-duration: 0.001ms !important;
+    transition-duration: 0.001ms !important;
+  }
+}

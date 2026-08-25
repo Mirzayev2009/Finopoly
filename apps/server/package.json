@@ -4,12 +4,16 @@
   "private": true,
   "type": "module",
   "scripts": {
-    "dev": "node --watch dev-server.js"
+    "dev": "node --watch dev-server.js",
+    "test": "vitest run"
   },
   "dependencies": {
-    "@estate/engine": "workspace:*",
+    "@estate/content": "workspace:*",
     "@supabase/supabase-js": "^2.45.4",
     "dotenv": "^16.4.5",
     "zod": "^3.23.8"
+  },
+  "devDependencies": {
+    "vitest": "^2.1.4"
   }
 }

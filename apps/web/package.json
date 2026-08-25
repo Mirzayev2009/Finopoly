@@ -5,13 +5,15 @@
   "type": "module",
   "scripts": {
     "dev": "vite",
+    "prebuild": "node ../../scripts/check-content-boundary.js",
     "build": "vite build",
+    "postbuild": "node ../../scripts/check-dist-boundary.js",
     "preview": "vite preview",
+    "pretest": "node ../../scripts/check-content-boundary.js",
     "test": "vitest run"
   },
   "dependencies": {
     "@estate/content": "workspace:*",
-    "@estate/engine": "workspace:*",
     "@phosphor-icons/react": "^2.1.7",
     "@supabase/supabase-js": "^2.45.4",
     "react": "^18.3.1",

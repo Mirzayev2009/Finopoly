@@ -1,0 +1,99 @@
+.phase {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  padding: var(--space-2) var(--space-3) var(--space-3);
+  min-height: 0;
+}
+
+.timer {
+  align-self: center;
+  font-size: var(--text-2xl);
+  color: var(--text);
+}
+
+.collapsible {
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  background: var(--surface);
+}
+
+.collapsibleHeader {
+  width: 100%;
+  min-height: 44px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0 var(--space-2);
+  background: none;
+  border: none;
+  color: var(--text);
+  font-family: var(--font-ui);
+  font-size: var(--text-base);
+  cursor: pointer;
+}
+
+.caretOpen {
+  transform: rotate(180deg);
+  transition: transform var(--motion-state);
+}
+
+.questions {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+  margin: 0;
+  padding: 0 var(--space-2) var(--space-2) calc(var(--space-2) + var(--space-2));
+}
+
+.question {
+  font-size: var(--text-sm);
+  line-height: 1.4;
+  color: var(--text-2);
+}
+
+.notesArea {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+  min-height: 0;
+}
+
+.notesHeader {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  min-height: 20px;
+}
+
+.notesLabel {
+  font-size: var(--text-sm);
+  color: var(--text-3);
+}
+
+.typingLine {
+  font-size: var(--text-xs);
+  color: var(--accent);
+  font-style: italic;
+}
+
+.notesInput {
+  flex: 1;
+  min-height: 200px;
+  width: 100%;
+  padding: var(--space-2);
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  color: var(--text);
+  font-family: var(--font-ui);
+  font-size: var(--text-base);
+  line-height: 1.5;
+  resize: none;
+}
+.notesInput:focus {
+  outline: none;
+  border-color: var(--syndicate-color, var(--accent));
+}

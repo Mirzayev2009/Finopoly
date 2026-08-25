@@ -1,0 +1,125 @@
+.page {
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+  background: var(--bg);
+}
+
+.center {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: var(--space-3);
+}
+
+.panel {
+  width: 100%;
+  max-width: 480px;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+}
+
+.heading {
+  font-size: var(--text-xl);
+  color: var(--text);
+}
+
+.subheading {
+  font-size: var(--text-sm);
+  color: var(--text-2);
+  margin: 0;
+}
+
+.error {
+  font-size: var(--text-sm);
+  color: var(--loss);
+  margin: 0;
+}
+
+.segmented {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+  margin-top: var(--space-1);
+}
+
+.option {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--space-2);
+  padding: var(--space-2);
+  background: var(--surface);
+  border: 2px solid var(--border);
+  border-radius: var(--radius);
+  color: var(--text);
+  text-align: left;
+  cursor: pointer;
+  transition: border-color var(--motion-state);
+}
+
+.option:hover:not(:disabled) {
+  border-color: var(--border-hi);
+}
+
+.optionSelected {
+  border-color: var(--accent);
+}
+
+.optionDisabled {
+  cursor: not-allowed;
+  opacity: 0.5;
+}
+
+.optionText {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.optionLabel {
+  font-size: var(--text-base);
+  font-weight: 600;
+}
+
+.optionDescription {
+  font-size: var(--text-xs);
+  color: var(--text-2);
+}
+
+.roomSelect {
+  width: 100%;
+  padding: var(--space-2);
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  color: var(--text);
+  font-family: var(--font-ui);
+  font-size: var(--text-base);
+  margin-top: var(--space-1);
+}
+
+.primaryButton {
+  width: 100%;
+  padding: var(--space-2);
+  margin-top: var(--space-2);
+  background: var(--accent);
+  border: none;
+  border-radius: var(--radius);
+  color: var(--bg);
+  font-family: var(--font-ui);
+  font-size: var(--text-base);
+  font-weight: 600;
+  cursor: pointer;
+  transition: opacity var(--motion-state);
+}
+
+.primaryButton:hover:not(:disabled) {
+  opacity: 0.9;
+}
+
+.primaryButton:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
