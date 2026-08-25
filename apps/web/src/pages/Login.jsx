@@ -59,7 +59,7 @@ export default function Login() {
           ))}
         </div>
 
-        <p className={styles.footerNote}>© {new Date().getFullYear()} Estate</p>
+        <p className={styles.footerNote}>© {new Date().getFullYear()} Finoploy</p>
       </aside>
 
       <div className={styles.formPanel}>

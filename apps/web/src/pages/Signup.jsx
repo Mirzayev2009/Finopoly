@@ -59,7 +59,7 @@ export default function Signup() {
             ))}
           </div>
 
-          <p className={styles.footerNote}>© {new Date().getFullYear()} Estate</p>
+          <p className={styles.footerNote}>© {new Date().getFullYear()} Finoploy</p>
         </aside>
 
         <div className={styles.formPanel}>
@@ -97,7 +97,7 @@ export default function Signup() {
           ))}
         </div>
 
-        <p className={styles.footerNote}>© {new Date().getFullYear()} Estate</p>
+        <p className={styles.footerNote}>© {new Date().getFullYear()} Finoploy</p>
       </aside>
 
       <div className={styles.formPanel}>

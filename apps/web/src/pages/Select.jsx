@@ -50,7 +50,7 @@ export default function Select() {
       <TopBar />
       <div className={styles.center}>
         <div className={styles.panel}>
-          <h1 className={styles.heading}>Market Masters</h1>
+          <h1 className={styles.heading}>Finoploy</h1>
           <p className={styles.subheading}>Choose a view and a room to enter.</p>
 
           <div className={styles.segmented} role="radiogroup" aria-label="Surface">
