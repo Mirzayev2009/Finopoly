@@ -1,10 +1,16 @@
 .page {
-  min-height: 100vh;
-  display: grid;
-  grid-template-columns: min(88vh, 62vw) 1fr;
-  gap: var(--space-3);
-  padding: var(--space-3);
+  height: 100vh;
+  display: flex;
+  align-items: center;
+  justify-content: center;
   background: var(--bg);
+  overflow: hidden;
+}
+
+@media (max-width: 1199px) {
+  .page {
+    padding-bottom: 96px;
+  }
 }
 
 .error {
@@ -18,7 +24,7 @@
   grid-template-columns: repeat(11, 1fr);
   grid-template-rows: repeat(11, 1fr);
   aspect-ratio: 1 / 1;
-  width: min(88vh, 62vw);
+  width: min(88vh, 88vw);
   gap: 2px;
   background: var(--border);
   border: 1px solid var(--border);
@@ -236,15 +242,74 @@
 }
 
 .rail {
+  position: fixed;
+  top: 0;
+  right: 0;
+  bottom: 0;
+  z-index: 10;
+  width: 320px;
   display: flex;
   flex-direction: column;
   gap: var(--space-2);
+  padding: var(--space-3);
+  background: var(--surface);
+  border-left: 1px solid var(--border);
+  overflow-y: auto;
+}
+
+@media (max-width: 1199px) {
+  .rail {
+    top: auto;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    width: auto;
+    flex-direction: row;
+    align-items: center;
+    gap: var(--space-3);
+    border-left: none;
+    border-top: 1px solid var(--border);
+    overflow-x: auto;
+    overflow-y: hidden;
+  }
+
+  .standings {
+    flex: 1;
+    flex-direction: row;
+    flex-wrap: nowrap;
+  }
+
+  .transactions {
+    display: none;
+  }
+}
+
+.timerBlock {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: var(--space-2);
+  background: var(--surface-2);
+  border-radius: var(--radius);
+  border: 1px solid var(--border-hi);
+  flex-shrink: 0;
+}
+
+.timerValue {
+  font-size: var(--text-xl);
+  font-weight: 700;
+  color: var(--text);
+}
+
+.timerUrgent .timerValue {
+  color: var(--loss);
 }
 
 .standings {
   display: flex;
   flex-direction: column;
   gap: var(--space-1);
+  flex-shrink: 0;
 }
 
 .standingRow {
@@ -276,4 +341,49 @@
 
 .cash {
   font-size: var(--text-sm);
+}
+
+.transactions {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  gap: var(--space-1);
+  overflow-y: auto;
+  min-height: 0;
+}
+
+.txRow {
+  display: flex;
+  align-items: center;
+  gap: var(--space-1);
+  padding: var(--space-1);
+}
+
+.txChip {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  flex-shrink: 0;
+}
+
+.txNote {
+  flex: 1;
+  font-size: var(--text-xs);
+  color: var(--text-3);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.txAmount {
+  font-size: var(--text-xs);
+  flex-shrink: 0;
+}
+
+.gain {
+  color: var(--gain);
+}
+
+.loss {
+  color: var(--loss);
 }

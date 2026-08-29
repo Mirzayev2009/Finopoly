@@ -1,9 +1,11 @@
-import { useState } from 'react';
-import { useParams } from 'react-router-dom';
+import { useEffect, useState } from 'react';
+import { Navigate, useParams } from 'react-router-dom';
 import { ERA_BRIEFINGS } from '@estate/content/client';
 import { useAuth } from '../context/AuthContext.jsx';
 import { useHostConnection } from '../hooks/useHostConnection.js';
-import { callRoomAction, callAdvanceEra, callResetGame } from '../lib/roomActions.js';
+import {
+  callRoomAction, callAdvanceEra, callResetGame, callSetEraSequence, callSetStartingCash,
+} from '../lib/roomActions.js';
 import { formatMoney, formatSignedMoney } from '../lib/money.js';
 import PageLoader from '../components/PageLoader.jsx';
 import TopBar from '../components/TopBar.jsx';
@@ -24,6 +26,24 @@ export default function RoomHost() {
   const [newSyndicateName, setNewSyndicateName] = useState('');
   const [resetConfirm, setResetConfirm] = useState('');
   const [showDanger, setShowDanger] = useState(false);
+  const [eraSequenceDraft, setEraSequenceDraft] = useState([]);
+  const [eraSequenceSeeded, setEraSequenceSeeded] = useState(false);
+  const [startingCashDraft, setStartingCashDraft] = useState('');
+
+  // Seed the two setup drafts from the current game_state once it first
+  // arrives (the initial snapshot is async — a plain useState initializer
+  // would run before it lands and never pick it up).
+  useEffect(() => {
+    if (!eraSequenceSeeded && state.game?.eraSequence?.length) {
+      setEraSequenceDraft(state.game.eraSequence);
+      setEraSequenceSeeded(true);
+    }
+  }, [state.game, eraSequenceSeeded]);
+
+  // profile loads async and independently of state; until it lands we don't
+  // yet know whether this caller is staff, so wait rather than bounce them.
+  if (profile === null) return <PageLoader label="Checking access…" />;
+  if (!['host', 'admin'].includes(profile.app_role)) return <Navigate to="/team" replace />;
 
   if (state.status === 'loading') return <PageLoader label="Loading host control…" />;
   if (state.status === 'error') return <div className={styles.error}>{state.error}</div>;
@@ -37,6 +57,39 @@ export default function RoomHost() {
     setBusy(true);
     try {
       await callRoomAction(slug, session.access_token, actionType, payload);
+    } catch (e) {
+      // eslint-disable-next-line no-alert
+      alert(e.message);
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  function toggleEraInSequence(eraId) {
+    setEraSequenceDraft((current) => (
+      current.includes(eraId) ? current.filter((id) => id !== eraId) : [...current, eraId]
+    ));
+  }
+
+  async function saveEraSequence() {
+    setBusy(true);
+    try {
+      await callSetEraSequence(session.access_token, eraSequenceDraft);
+    } catch (e) {
+      // eslint-disable-next-line no-alert
+      alert(e.message);
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  async function saveStartingCash() {
+    const amount = Number(startingCashDraft);
+    if (!amount || amount <= 0) return;
+    setBusy(true);
+    try {
+      await callSetStartingCash(session.access_token, amount);
+      setStartingCashDraft('');
     } catch (e) {
       // eslint-disable-next-line no-alert
       alert(e.message);
@@ -87,6 +140,49 @@ export default function RoomHost() {
           Advance Era
         </button>
       </div>
+
+      {isAdmin && game?.status === 'lobby' && (
+        <section className={styles.setup}>
+          <h2 className={styles.sectionTitle}>Game Setup (admin, before start)</h2>
+          <div className={styles.setupRow}>
+            <span className={styles.turnLabel}>Starting cash</span>
+            <span className={`${styles.turnLabel} money`}>currently {formatMoney(game.startingCash ?? 0)}</span>
+            <input
+              type="number"
+              min={1}
+              placeholder="New amount"
+              value={startingCashDraft}
+              onChange={(e) => setStartingCashDraft(e.target.value)}
+            />
+            <button type="button" disabled={busy || !startingCashDraft} onClick={saveStartingCash}>
+              Set
+            </button>
+          </div>
+
+          <div className={styles.setupRow}>
+            <span className={styles.turnLabel}>Era sequence ({eraSequenceDraft.length} selected, click to toggle/order)</span>
+          </div>
+          <div className={styles.eraPicker}>
+            {ERA_BRIEFINGS.map((e) => {
+              const order = eraSequenceDraft.indexOf(e.id);
+              return (
+                <button
+                  key={e.id}
+                  type="button"
+                  className={order >= 0 ? styles.eraChipSelected : styles.eraChipOption}
+                  onClick={() => toggleEraInSequence(e.id)}
+                >
+                  {order >= 0 && <span className={styles.eraOrder}>{order + 1}</span>}
+                  {e.title}
+                </button>
+              );
+            })}
+          </div>
+          <button type="button" disabled={busy || eraSequenceDraft.length === 0} onClick={saveEraSequence}>
+            Save Sequence
+          </button>
+        </section>
+      )}
 
       <div className={styles.columns}>
         <section className={styles.left}>

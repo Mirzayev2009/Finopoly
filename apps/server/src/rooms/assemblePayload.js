@@ -45,6 +45,7 @@ export function assembleRoomPayload(room, syndicates, pendingTurn, transactions,
       eraId: gameState.era_sequence?.[gameState.current_era_index] ?? null,
       eraSequence: gameState.era_sequence,
       currentEraIndex: gameState.current_era_index,
+      startingCash: gameState.starting_cash,
     },
     room: {
       slug: room.slug,

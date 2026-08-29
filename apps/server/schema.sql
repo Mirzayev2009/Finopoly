@@ -1130,7 +1130,7 @@ declare
   v_era_id text;
 begin
   select app_role into v_role from profiles where id = p_actor_id;
-  if v_role not in ('host', 'admin') then raise exception 'FORBIDDEN'; end if;
+  if v_role is null or v_role not in ('host', 'admin') then raise exception 'FORBIDDEN'; end if;
 
   select * into v_state from game_state where id = 1 for update;
   v_next_index := case when v_state.status = 'lobby' then 0 else v_state.current_era_index + 1 end;
@@ -1143,9 +1143,14 @@ begin
   v_era_id := v_state.era_sequence[v_next_index + 1]; -- pg arrays are 1-indexed
 
   update game_state set status = 'active', current_era_index = v_next_index where id = 1;
-  update rooms set era_status = 'active', version = version + 1;
-  update syndicates set era_starting_cash = cash;
-  delete from pending_turns; -- abandon any open turn across every room on era change
+  -- `where true`: this project has Postgres's unqualified-update/delete
+  -- protection enabled, which rejects any UPDATE/DELETE with no WHERE
+  -- clause at all -- these three are intentionally unscoped (every room,
+  -- every syndicate, every pending turn), so `where true` satisfies the
+  -- guard without changing what rows are affected.
+  update rooms set era_status = 'active', version = version + 1 where true;
+  update syndicates set era_starting_cash = cash where true;
+  delete from pending_turns where true; -- abandon any open turn across every room on era change
 
   return jsonb_build_object('status', 'active', 'era_id', v_era_id);
 end;
@@ -1158,7 +1163,7 @@ declare
   v_status text;
 begin
   select app_role into v_role from profiles where id = p_actor_id;
-  if v_role <> 'admin' then raise exception 'FORBIDDEN'; end if;
+  if v_role is distinct from 'admin' then raise exception 'FORBIDDEN'; end if;
   select status into v_status from game_state where id = 1;
   if v_status <> 'lobby' then raise exception 'GAME_ALREADY_STARTED'; end if;
   update game_state set era_sequence = p_era_ids where id = 1;
@@ -1173,7 +1178,7 @@ declare
   v_status text;
 begin
   select app_role into v_role from profiles where id = p_actor_id;
-  if v_role <> 'admin' then raise exception 'FORBIDDEN'; end if;
+  if v_role is distinct from 'admin' then raise exception 'FORBIDDEN'; end if;
   select status into v_status from game_state where id = 1;
   if v_status <> 'lobby' then raise exception 'GAME_ALREADY_STARTED'; end if;
   if p_amount <= 0 then raise exception 'INVALID_AMOUNT'; end if;
@@ -1188,15 +1193,16 @@ declare
   v_role text;
 begin
   select app_role into v_role from profiles where id = p_actor_id;
-  if v_role <> 'admin' then raise exception 'FORBIDDEN'; end if;
+  if v_role is distinct from 'admin' then raise exception 'FORBIDDEN'; end if;
 
-  delete from transactions;
-  delete from pending_turns;
-  delete from syndicates; -- cascades to syndicate_members
-  delete from room_decks;
+  delete from transactions where true;
+  delete from pending_turns where true;
+  delete from syndicates where true; -- cascades to syndicate_members
+  delete from room_decks where true;
   update rooms set
     phase = 'lobby', era_status = 'active', turn_index = 0,
-    round_ending = false, timer_deadline = null, version = version + 1;
+    round_ending = false, timer_deadline = null, version = version + 1
+  where true;
   update game_state set status = 'lobby', current_era_index = 0 where id = 1;
 
   return jsonb_build_object('status', 'reset');

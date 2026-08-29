@@ -2,8 +2,9 @@ import { useParams } from 'react-router-dom';
 import { BOARD, ERA_BRIEFINGS } from '@estate/content/client';
 import { useAuth } from '../context/AuthContext.jsx';
 import { useRoomConnection } from '../hooks/useRoomConnection.js';
+import { useCountdown, formatCountdown } from '../hooks/useCountdown.js';
 import { getGridPosition } from '../lib/boardGeometry.js';
-import { formatMoney } from '../lib/money.js';
+import { formatMoney, formatSignedMoney } from '../lib/money.js';
 import PageLoader from '../components/PageLoader.jsx';
 import styles from './RoomBoard.module.css';
 
@@ -118,10 +119,15 @@ export default function RoomBoard() {
   const { session } = useAuth();
   const state = useRoomConnection(slug, session?.access_token);
 
+  // Pending-turn decisions (60-90s to force-submit/resolve) take priority
+  // over the room's own research-phase timer when both happen to be set.
+  const deadline = state.pendingTurn?.decisionDeadline ?? state.room?.timerDeadline ?? null;
+  const remainingMs = useCountdown(deadline);
+
   if (state.status === 'loading') return <PageLoader label="Loading board…" />;
   if (state.status === 'error') return <div className={styles.error}>{state.error}</div>;
 
-  const { game, room, syndicates, pendingTurn } = state;
+  const { game, room, syndicates, pendingTurn, transactions } = state;
   const era = ERA_BRIEFINGS.find((e) => e.id === game?.eraId);
   const turnSyndicate = syndicates[room.turnIndex] ?? null;
   const tokensByPosition = new Map();
@@ -150,6 +156,12 @@ export default function RoomBoard() {
       </div>
 
       <div className={styles.rail}>
+        {deadline && (
+          <div className={`${styles.timerBlock} ${remainingMs < 10000 ? styles.timerUrgent : ''}`}>
+            <span className={`${styles.timerValue} timer`}>{formatCountdown(remainingMs)}</span>
+          </div>
+        )}
+
         <div className={styles.standings}>
           {ranked.map((s, i) => (
             <div key={s.id} className={styles.standingRow}>
@@ -159,6 +171,21 @@ export default function RoomBoard() {
               <span className={`${styles.cash} money`}>{formatMoney(s.cash)}</span>
             </div>
           ))}
+        </div>
+
+        <div className={styles.transactions}>
+          {transactions.map((t) => {
+            const syn = syndicates.find((s) => s.id === t.syndicateId);
+            return (
+              <div key={t.id} className={styles.txRow}>
+                <span className={styles.txChip} style={{ background: syn?.color }} />
+                <span className={styles.txNote}>{syn?.name ?? '—'} · {t.note || t.actionType}</span>
+                <span className={`${styles.txAmount} ${t.amount >= 0 ? styles.gain : styles.loss} money`}>
+                  {formatSignedMoney(t.amount)}
+                </span>
+              </div>
+            );
+          })}
         </div>
       </div>
     </div>
