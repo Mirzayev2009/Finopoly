@@ -81,7 +81,7 @@ export async function fetchRoomSnapshot(roomSlug, accessToken) {
 
 /** GET the initial cross-room standings snapshot for /leaderboard. */
 export async function fetchStandings(accessToken) {
-  const res = await fetch(`${SERVER_URL}/api/game/standings`, {
+  const res = await fetch(`${SERVER_URL}/api/standings`, {
     headers: { Authorization: `Bearer ${accessToken}` },
   });
   const data = await res.json().catch(() => ({}));
@@ -89,54 +89,25 @@ export async function fetchStandings(accessToken) {
   return data;
 }
 
-/** GLOBAL action, host/admin only. */
-export async function callAdvanceEra(accessToken) {
-  const res = await fetch(`${SERVER_URL}/api/game/advance-era`, {
-    method: 'POST',
-    headers: { Authorization: `Bearer ${accessToken}` },
-  });
-  const data = await res.json().catch(() => ({}));
-  if (!res.ok) throw new Error(data.error || 'Failed to advance era');
-  return data;
-}
-
-/** Admin only. */
-export async function callResetGame(accessToken) {
-  const res = await fetch(`${SERVER_URL}/api/game/reset`, {
-    method: 'POST',
-    headers: { Authorization: `Bearer ${accessToken}` },
-  });
-  const data = await res.json().catch(() => ({}));
-  if (!res.ok) throw new Error(data.error || 'Failed to reset game');
-  return data;
-}
-
-/** Admin only, before start. */
-export async function callSetEraSequence(accessToken, eraIds) {
-  const res = await fetch(`${SERVER_URL}/api/game/set-era-sequence`, {
+/**
+ * Host/admin only. Creates a new room in one shot: era(s), starting cash,
+ * and named teams. ADVANCE_ERA/SET_ERA_SEQUENCE/SET_STARTING_CASH/RESET_ROOM
+ * are now plain room-scoped actions -- call them via callRoomAction like
+ * any other action, they're no longer separate global endpoints.
+ * @param {string} accessToken
+ * @param {{name: string, eraSequence: string[], startingCash: number, teamNames: string[]}} params
+ * @returns {Promise<string>} the new room's slug
+ */
+export async function createRoom(accessToken, { name, eraSequence, startingCash, teamNames }) {
+  const res = await fetch(`${SERVER_URL}/api/rooms/create`, {
     method: 'POST',
     headers: {
       'Content-Type': 'application/json',
       Authorization: `Bearer ${accessToken}`,
     },
-    body: JSON.stringify({ eraIds }),
+    body: JSON.stringify({ name, eraSequence, startingCash, teamNames }),
   });
   const data = await res.json().catch(() => ({}));
-  if (!res.ok) throw new Error(data.error || 'Failed to set era sequence');
-  return data;
-}
-
-/** Admin only, before start. */
-export async function callSetStartingCash(accessToken, amount) {
-  const res = await fetch(`${SERVER_URL}/api/game/set-starting-cash`, {
-    method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-      Authorization: `Bearer ${accessToken}`,
-    },
-    body: JSON.stringify({ amount }),
-  });
-  const data = await res.json().catch(() => ({}));
-  if (!res.ok) throw new Error(data.error || 'Failed to set starting cash');
-  return data;
+  if (!res.ok) throw new Error(data.error || 'Failed to create room');
+  return data.slug;
 }

@@ -3,9 +3,7 @@ import { Navigate, useParams } from 'react-router-dom';
 import { ERA_BRIEFINGS } from '@estate/content/client';
 import { useAuth } from '../context/AuthContext.jsx';
 import { useHostConnection } from '../hooks/useHostConnection.js';
-import {
-  callRoomAction, callAdvanceEra, callResetGame, callSetEraSequence, callSetStartingCash,
-} from '../lib/roomActions.js';
+import { callRoomAction } from '../lib/roomActions.js';
 import { formatMoney, formatSignedMoney } from '../lib/money.js';
 import PageLoader from '../components/PageLoader.jsx';
 import TopBar from '../components/TopBar.jsx';
@@ -30,7 +28,7 @@ export default function RoomHost() {
   const [eraSequenceSeeded, setEraSequenceSeeded] = useState(false);
   const [startingCashDraft, setStartingCashDraft] = useState('');
 
-  // Seed the two setup drafts from the current game_state once it first
+  // Seed the two setup drafts from this room's own state once it first
   // arrives (the initial snapshot is async — a plain useState initializer
   // would run before it lands and never pick it up).
   useEffect(() => {
@@ -51,7 +49,9 @@ export default function RoomHost() {
   const { game, room, syndicates, pendingTurn, transactions } = state;
   const era = ERA_BRIEFINGS.find((e) => e.id === game?.eraId);
   const turnSyndicate = syndicates[room.turnIndex] ?? null;
-  const isAdmin = profile?.app_role === 'admin';
+  // Game setup / reset are now room-scoped (blast radius = this room only),
+  // so any host running their own room may use them, not just admins.
+  const isHost = ['host', 'admin'].includes(profile?.app_role);
 
   async function act(actionType, payload) {
     setBusy(true);
@@ -74,7 +74,7 @@ export default function RoomHost() {
   async function saveEraSequence() {
     setBusy(true);
     try {
-      await callSetEraSequence(session.access_token, eraSequenceDraft);
+      await callRoomAction(slug, session.access_token, 'SET_ERA_SEQUENCE', { eraIds: eraSequenceDraft });
     } catch (e) {
       // eslint-disable-next-line no-alert
       alert(e.message);
@@ -88,7 +88,7 @@ export default function RoomHost() {
     if (!amount || amount <= 0) return;
     setBusy(true);
     try {
-      await callSetStartingCash(session.access_token, amount);
+      await callRoomAction(slug, session.access_token, 'SET_STARTING_CASH', { amount });
       setStartingCashDraft('');
     } catch (e) {
       // eslint-disable-next-line no-alert
@@ -135,15 +135,15 @@ export default function RoomHost() {
         <button
           type="button"
           disabled={busy}
-          onClick={() => callAdvanceEra(session.access_token).catch((e) => alert(e.message))}
+          onClick={() => act('ADVANCE_ERA', {})}
         >
           Advance Era
         </button>
       </div>
 
-      {isAdmin && game?.status === 'lobby' && (
+      {isHost && game?.status === 'lobby' && (
         <section className={styles.setup}>
-          <h2 className={styles.sectionTitle}>Game Setup (admin, before start)</h2>
+          <h2 className={styles.sectionTitle}>Game Setup (before start)</h2>
           <div className={styles.setupRow}>
             <span className={styles.turnLabel}>Starting cash</span>
             <span className={`${styles.turnLabel} money`}>currently {formatMoney(game.startingCash ?? 0)}</span>
@@ -262,7 +262,7 @@ export default function RoomHost() {
         </table>
       </section>
 
-      {isAdmin && (
+      {isHost && (
         <section className={styles.danger}>
           <button type="button" onClick={() => setShowDanger((v) => !v)}>Danger Zone</button>
           {showDanger && (
@@ -276,11 +276,11 @@ export default function RoomHost() {
                 type="button"
                 disabled={resetConfirm !== 'RESET' || busy}
                 onClick={() => {
-                  callResetGame(session.access_token).catch((e) => alert(e.message));
+                  act('RESET_ROOM', {});
                   setResetConfirm('');
                 }}
               >
-                Reset Game
+                Reset Room
               </button>
             </div>
           )}

@@ -1,8 +1,38 @@
+import { ERAS } from '@estate/content';
 import { supabase } from '../supabase.js';
 import { assembleRoomPayload, assembleStandingsPayload } from './assemblePayload.js';
 import { sendBroadcast, roomTopic, hostTopic, GLOBAL_TOPIC } from './broadcast.js';
 
 const VERSION_CONFLICT_CODE = '40001';
+
+function shuffle(array) {
+  const result = [...array];
+  for (let i = result.length - 1; i > 0; i -= 1) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [result[i], result[j]] = [result[j], result[i]];
+  }
+  return result;
+}
+
+/**
+ * Deals a freshly shuffled deck for ONE room's current era -- the Node-side
+ * half of ADVANCE_ERA (schema.sql's branch only moves era/status/syndicate
+ * bookkeeping; nothing in SQL knows about era content, per room_decks'
+ * own comment). Called right after an ADVANCE_ERA action lands, for that
+ * room only -- this used to deal the same deck to every room at once.
+ * @param {string} roomId
+ * @param {string} eraId
+ */
+export async function dealRoomDeck(roomId, eraId) {
+  const era = ERAS.find((e) => e.id === eraId);
+  if (!era) throw new Error(`ADVANCE_ERA landed on an unknown era id: ${eraId}`);
+  const { error } = await supabase.rpc('set_room_deck', {
+    p_room_id: roomId,
+    p_era_id: era.id,
+    p_cards: shuffle(era.investments),
+  });
+  if (error) throw error;
+}
 
 function isVersionConflict(error) {
   return error?.code === VERSION_CONFLICT_CODE || error?.message?.includes('VERSION_CONFLICT');
@@ -99,24 +129,21 @@ export async function callSetPendingNewsCard(roomId, newsCard) {
  */
 export async function loadRoomSnapshot(roomId) {
   const [{ data: room, error: roomError }, { data: syndicates, error: synError },
-    { data: pendingTurn, error: pendingError }, { data: transactions, error: txError },
-    { data: gameState, error: gameStateError }] = await Promise.all([
+    { data: pendingTurn, error: pendingError }, { data: transactions, error: txError }] = await Promise.all([
     supabase.from('rooms').select('*').eq('id', roomId).single(),
     supabase.from('syndicates').select('*').eq('room_id', roomId).order('turn_order'),
     supabase.from('pending_turns').select('*').eq('room_id', roomId).maybeSingle(),
     supabase.from('transactions').select('*').eq('room_id', roomId).order('created_at', { ascending: false }).limit(6),
-    supabase.from('game_state').select('*').eq('id', 1).single(),
   ]);
 
   if (roomError) throw roomError;
   if (synError) throw synError;
   if (pendingError) throw pendingError;
   if (txError) throw txError;
-  if (gameStateError) throw gameStateError;
 
   return {
     room, syndicates: syndicates ?? [], pendingTurn: pendingTurn ?? null,
-    transactions: transactions ?? [], gameState,
+    transactions: transactions ?? [],
   };
 }
 
@@ -130,11 +157,12 @@ export async function loadRoomSnapshot(roomId) {
  * @returns {Promise<{ hostPayload: object, roomPayload: object, slug: string }>}
  */
 export async function broadcastRoomUpdate(roomId) {
-  const { room, syndicates, pendingTurn, transactions, gameState } = await loadRoomSnapshot(roomId);
+  const { room, syndicates, pendingTurn, transactions } = await loadRoomSnapshot(roomId);
 
-  const hostPayload = assembleRoomPayload(room, syndicates, pendingTurn, transactions, 'host', gameState);
-  const roomPayload = assembleRoomPayload(room, syndicates, pendingTurn, transactions, 'room', gameState);
-  const standingsPayload = assembleStandingsPayload(room.slug, syndicates);
+  const hostPayload = assembleRoomPayload(room, syndicates, pendingTurn, transactions, 'host');
+  const roomPayload = assembleRoomPayload(room, syndicates, pendingTurn, transactions, 'room');
+  const eraId = room.era_sequence?.[room.current_era_index] ?? null;
+  const standingsPayload = assembleStandingsPayload(room.slug, syndicates, eraId);
 
   await Promise.all([
     sendBroadcast(hostTopic(room.slug), 'state', hostPayload),

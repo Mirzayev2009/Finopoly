@@ -5,7 +5,8 @@
   "type": "module",
   "scripts": {
     "dev": "node --watch dev-server.js",
-    "test": "vitest run"
+    "test": "vitest run",
+    "create-host": "node scripts/create-host.js"
   },
   "dependencies": {
     "@estate/content": "workspace:*",

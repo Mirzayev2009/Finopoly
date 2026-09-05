@@ -1,27 +1,35 @@
 import { Navigate, Route, Routes } from 'react-router-dom';
 import Login from './pages/Login.jsx';
-import Signup from './pages/Signup.jsx';
 import AuthCallback from './pages/AuthCallback.jsx';
 import Select from './pages/Select.jsx';
+import NewRoom from './pages/NewRoom.jsx';
 import RoomBoard from './pages/RoomBoard.jsx';
 import RoomHost from './pages/RoomHost.jsx';
 import Join from './pages/Join.jsx';
 import Team from './pages/Team.jsx';
 import Leaderboard from './pages/Leaderboard.jsx';
 import ProtectedRoute from './components/ProtectedRoute.jsx';
+import AnonymousRoute from './components/AnonymousRoute.jsx';
 
 export default function App() {
   return (
     <Routes>
       <Route path="/" element={<Navigate to="/select" replace />} />
       <Route path="/login" element={<Login />} />
-      <Route path="/signup" element={<Signup />} />
       <Route path="/auth/callback" element={<AuthCallback />} />
       <Route
         path="/select"
         element={
           <ProtectedRoute>
             <Select />
+          </ProtectedRoute>
+        }
+      />
+      <Route
+        path="/rooms/new"
+        element={
+          <ProtectedRoute>
+            <NewRoom />
           </ProtectedRoute>
         }
       />
@@ -44,17 +52,17 @@ export default function App() {
       <Route
         path="/join"
         element={
-          <ProtectedRoute>
+          <AnonymousRoute>
             <Join />
-          </ProtectedRoute>
+          </AnonymousRoute>
         }
       />
       <Route
         path="/team"
         element={
-          <ProtectedRoute>
+          <AnonymousRoute>
             <Team />
-          </ProtectedRoute>
+          </AnonymousRoute>
         }
       />
       <Route

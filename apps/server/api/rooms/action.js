@@ -1,7 +1,9 @@
 import { NEWS_CARDS } from '@estate/content';
 import { withAuth } from '../../src/auth.js';
 import { supabase } from '../../src/supabase.js';
-import { loadRoomBySlug, callRoomAction, callSetPendingNewsCard, broadcastRoomUpdate } from '../../src/rooms/dispatch.js';
+import {
+  loadRoomBySlug, callRoomAction, callSetPendingNewsCard, broadcastRoomUpdate, dealRoomDeck,
+} from '../../src/rooms/dispatch.js';
 
 // Mirrors apply_room_action()'s own host/admin gate in schema.sql -- used
 // here only to decide which audience payload to hand back to the caller,
@@ -9,7 +11,7 @@ import { loadRoomBySlug, callRoomAction, callSetPendingNewsCard, broadcastRoomUp
 const HOST_ONLY_ACTIONS = new Set([
   'REGISTER_SYNDICATE', 'REMOVE_SYNDICATE', 'ROLL', 'FORCE_SUBMIT', 'RESOLVE_NEWS',
   'RESOLVE_CORNER', 'SKIP_TURN', 'ADJUST', 'START_TIMER', 'ADJUST_TIMER', 'CLEAR_TIMER',
-  'SET_PHASE',
+  'SET_PHASE', 'ADVANCE_ERA', 'SET_ERA_SEQUENCE', 'SET_STARTING_CASH', 'RESET_ROOM',
 ]);
 
 export default withAuth(async (req, res) => {
@@ -41,6 +43,23 @@ export default withAuth(async (req, res) => {
     if (pending?.stage === 'news' && pending.news_card == null) {
       const card = NEWS_CARDS[Math.floor(Math.random() * NEWS_CARDS.length)];
       await callSetPendingNewsCard(room.id, card);
+    }
+  }
+
+  // ADVANCE_ERA (schema.sql) only moves era/status/syndicate bookkeeping for
+  // this one room -- nothing in SQL knows about era content (room_decks'
+  // own comment). Deal this room's fresh deck here, same pattern as the
+  // ROLL news-card fill-in above, before the state broadcasts below.
+  if (actionType === 'ADVANCE_ERA') {
+    const { data: freshRoom, error: freshRoomError } = await supabase
+      .from('rooms')
+      .select('status, era_sequence, current_era_index')
+      .eq('id', room.id)
+      .single();
+    if (freshRoomError) throw freshRoomError;
+    if (freshRoom.status === 'active') {
+      const eraId = freshRoom.era_sequence?.[freshRoom.current_era_index];
+      await dealRoomDeck(room.id, eraId);
     }
   }
 

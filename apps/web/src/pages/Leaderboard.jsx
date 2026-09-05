@@ -8,15 +8,24 @@ import PageLoader from '../components/PageLoader.jsx';
 import TopBar from '../components/TopBar.jsx';
 import styles from './Leaderboard.module.css';
 
+// Each room now runs its own era independently (no more single global
+// era), so standings are keyed by room and carry that room's own eraId.
 function standingsReducer(state, action) {
   switch (action.type) {
     case 'SNAPSHOT':
       return {
-        eraId: action.eraId,
-        byRoom: Object.fromEntries(action.rooms.map((r) => [r.roomSlug, r.standings])),
+        byRoom: Object.fromEntries(
+          action.rooms.map((r) => [r.roomSlug, { eraId: r.eraId, standings: r.standings }]),
+        ),
       };
     case 'DELTA':
-      return { ...state, byRoom: { ...state.byRoom, [action.payload.roomSlug]: action.payload.standings } };
+      return {
+        ...state,
+        byRoom: {
+          ...state.byRoom,
+          [action.payload.roomSlug]: { eraId: action.payload.eraId, standings: action.payload.standings },
+        },
+      };
     default:
       return state;
   }
@@ -25,7 +34,7 @@ function standingsReducer(state, action) {
 export default function Leaderboard() {
   const { session } = useAuth();
   const accessToken = session?.access_token;
-  const [state, dispatch] = useReducer(standingsReducer, { eraId: null, byRoom: null });
+  const [state, dispatch] = useReducer(standingsReducer, { byRoom: null });
 
   useEffect(() => {
     if (!accessToken) return undefined;
@@ -35,9 +44,8 @@ export default function Leaderboard() {
 
   if (!state.byRoom) return <PageLoader label="Loading leaderboard…" />;
 
-  const era = ERA_BRIEFINGS.find((e) => e.id === state.eraId);
   const rows = Object.entries(state.byRoom)
-    .flatMap(([roomSlug, standings]) => standings.map((s) => ({ ...s, roomSlug })))
+    .flatMap(([roomSlug, { eraId, standings }]) => standings.map((s) => ({ ...s, roomSlug, eraId })))
     .sort((a, b) => b.cash - a.cash);
 
   return (
@@ -45,7 +53,6 @@ export default function Leaderboard() {
       <TopBar />
       <div className={styles.headerRow}>
         <h1 className={styles.heading}>Global Rankings</h1>
-        {era && <span className={styles.eraName}>{era.title}</span>}
       </div>
 
       {rows.length === 0 ? (
@@ -57,6 +64,7 @@ export default function Leaderboard() {
               <th>Rank</th>
               <th>Syndicate</th>
               <th>Room</th>
+              <th>Era</th>
               <th>Cash</th>
               <th>&Delta; This Era</th>
             </tr>
@@ -64,6 +72,7 @@ export default function Leaderboard() {
           <tbody>
             {rows.map((s, i) => {
               const delta = s.cash - s.eraStartingCash;
+              const era = ERA_BRIEFINGS.find((e) => e.id === s.eraId);
               return (
                 <tr key={s.syndicateId} className={i < 3 ? styles.topRow : undefined}>
                   <td className={styles.rank}>{i + 1}</td>
@@ -72,6 +81,7 @@ export default function Leaderboard() {
                     {s.name}
                   </td>
                   <td className={styles.room}>{s.roomSlug}</td>
+                  <td className={styles.room}>{era?.title ?? '—'}</td>
                   <td className="money">{formatMoney(s.cash)}</td>
                   <td className={delta >= 0 ? styles.gain : styles.loss}>{formatSignedMoney(delta)}</td>
                 </tr>

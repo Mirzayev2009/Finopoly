@@ -190,7 +190,11 @@ begin
   end if;
 end $$;
 
--- Global singleton: which era we're on, in what sequence, across every room.
+-- DEPRECATED, dropped further down this file once `rooms` has its own
+-- era/status/starting_cash columns (see the backfill+drop below). No longer
+-- seeded here (it used to be) -- on a database where this table already
+-- exists with real data, that's exactly what the backfill below reads; on a
+-- brand-new database, it's created empty and the backfill is a no-op.
 create table if not exists game_state (
   id integer primary key default 1,
   status text not null default 'lobby', -- 'lobby' | 'active' | 'finished'
@@ -203,7 +207,6 @@ create table if not exists game_state (
   created_at timestamptz not null default now(),
   constraint game_state_singleton check (id = 1)
 );
-insert into game_state (id) values (1) on conflict (id) do nothing;
 
 -- One row per classroom. Pre-provisioned (not created per-game like the old
 -- `games` table) — REGISTER_SYNDICATE etc. all target an existing room by slug.
@@ -219,6 +222,38 @@ create table if not exists rooms (
   version integer not null default 1,
   created_at timestamptz not null default now()
 );
+
+-- Formerly a global singleton (`game_state`, id=1) shared by every room --
+-- moved onto `rooms` itself so two hosts can run two different eras at once.
+-- `create_room()` below sets these at creation time; ADVANCE_ERA/
+-- SET_ERA_SEQUENCE/SET_STARTING_CASH/RESET_ROOM (inside apply_room_action())
+-- mutate them per-room from then on.
+alter table rooms add column if not exists status text not null default 'lobby'; -- 'lobby' | 'active' | 'finished'
+alter table rooms add column if not exists era_sequence text[] not null default '{}';
+alter table rooms add column if not exists current_era_index integer not null default 0;
+alter table rooms add column if not exists starting_cash integer not null default 2000;
+alter table rooms add column if not exists created_by uuid references profiles(id) on delete set null;
+
+-- One-time backfill for any room hand-inserted before this migration, from
+-- the old global singleton (still present at this point in the script).
+-- No-op once game_state is gone or empty.
+-- gs.status is normalized here rather than copied as-is: this project's
+-- game_state table has drifted from what's declared above on at least one
+-- live database (extra columns, a stricter status check than the default
+-- this file declares) -- whatever "not started yet" value it actually holds
+-- (seen in the wild: 'idle') maps to our new 'lobby', so ADVANCE_ERA's own
+-- "status = 'lobby' means deal era_sequence[0]" branch still does the right
+-- thing regardless of that drift.
+do $$
+begin
+  if exists (select 1 from information_schema.tables where table_name = 'game_state') then
+    update rooms r set
+      status = case when gs.status in ('active', 'finished') then gs.status else 'lobby' end,
+      era_sequence = gs.era_sequence,
+      current_era_index = gs.current_era_index, starting_cash = gs.starting_cash
+    from game_state gs where gs.id = 1;
+  end if;
+end $$;
 
 create table if not exists syndicates (
   id uuid primary key default gen_random_uuid(),
@@ -571,7 +606,7 @@ begin
   if p_action_type in (
     'REGISTER_SYNDICATE', 'REMOVE_SYNDICATE', 'ROLL', 'FORCE_SUBMIT', 'RESOLVE_NEWS',
     'RESOLVE_CORNER', 'SKIP_TURN', 'ADJUST', 'START_TIMER', 'ADJUST_TIMER', 'CLEAR_TIMER',
-    'SET_PHASE'
+    'SET_PHASE', 'ADVANCE_ERA', 'SET_ERA_SEQUENCE', 'SET_STARTING_CASH', 'RESET_ROOM'
   ) and v_actor_role not in ('host', 'admin') then
     raise exception 'FORBIDDEN';
   end if;
@@ -582,7 +617,7 @@ begin
     declare
       v_new_id uuid;
       v_colors text[] := array['#E8B44A','#34D399','#60A5FA','#F472B6','#F59E0B','#A78BFA','#F43F5E','#22D3EE'];
-      v_starting_cash int := (select starting_cash from game_state where id = 1);
+      v_starting_cash int := v_room.starting_cash;
     begin
       select count(*) into v_syndicate_count from syndicates where room_id = p_room_id;
       if v_syndicate_count >= 8 then
@@ -906,7 +941,7 @@ begin
 
         when 'BAILOUT' then
           declare
-            v_floor int := (select starting_cash from game_state where id = 1);
+            v_floor int := v_room.starting_cash;
           begin
             if v_syn.cash < v_floor then
               v_amount := v_floor - v_syn.cash;
@@ -1101,6 +1136,55 @@ begin
   when 'SET_PHASE' then
     update rooms set phase = p_payload ->> 'phase' where id = p_room_id;
 
+  when 'ADVANCE_ERA' then
+    -- Hard end (Fix F): advancing past the end of era_sequence sets status to
+    -- 'finished' and touches nothing else -- no wraparound back to era 0.
+    -- The first call (status still 'lobby') deals era_sequence[0] rather
+    -- than skipping past it, since there's no separate "start game" action.
+    declare
+      v_next_index int;
+    begin
+      v_next_index := case when v_room.status = 'lobby' then 0 else v_room.current_era_index + 1 end;
+      if v_next_index > coalesce(array_length(v_room.era_sequence, 1), 0) - 1 then
+        update rooms set status = 'finished' where id = p_room_id;
+      else
+        update rooms set status = 'active', current_era_index = v_next_index, era_status = 'active'
+        where id = p_room_id;
+        update syndicates set era_starting_cash = cash where room_id = p_room_id;
+        delete from pending_turns where room_id = p_room_id; -- abandon this room's open turn on era change
+      end if;
+    end;
+
+  when 'SET_ERA_SEQUENCE' then
+    declare
+      v_era_ids text[] := array(select jsonb_array_elements_text(p_payload -> 'eraIds'));
+    begin
+      if v_room.status <> 'lobby' then raise exception 'GAME_ALREADY_STARTED'; end if;
+      if v_era_ids is null or array_length(v_era_ids, 1) is null then raise exception 'ERA_SEQUENCE_REQUIRED'; end if;
+      update rooms set era_sequence = v_era_ids where id = p_room_id;
+    end;
+
+  when 'SET_STARTING_CASH' then
+    declare
+      v_amount int := (p_payload ->> 'amount')::int;
+    begin
+      if v_room.status <> 'lobby' then raise exception 'GAME_ALREADY_STARTED'; end if;
+      if v_amount is null or v_amount <= 0 then raise exception 'INVALID_AMOUNT'; end if;
+      update rooms set starting_cash = v_amount where id = p_room_id;
+    end;
+
+  when 'RESET_ROOM' then
+    begin
+      delete from transactions where room_id = p_room_id;
+      delete from pending_turns where room_id = p_room_id;
+      delete from syndicates where room_id = p_room_id; -- cascades to syndicate_members
+      delete from room_decks where room_id = p_room_id;
+      update rooms set
+        status = 'lobby', phase = 'lobby', era_status = 'active', turn_index = 0,
+        round_ending = false, timer_deadline = null, current_era_index = 0
+      where id = p_room_id;
+    end;
+
   else
     raise exception 'UNKNOWN_ACTION_TYPE';
   end case;
@@ -1111,101 +1195,70 @@ end;
 $$;
 
 -- ----------------------------------------------------------------------
--- Global/admin actions -- not scoped to one room's version, so kept
--- separate from apply_room_action() rather than forcing a fake room id and
--- a second authorization shape onto that function's signature.
+-- Formerly-global admin actions (advance_era/set_era_sequence/
+-- set_starting_cash/reset_game) are now per-room ADVANCE_ERA/
+-- SET_ERA_SEQUENCE/SET_STARTING_CASH/RESET_ROOM branches inside
+-- apply_room_action() above -- they need the same room-row lock and
+-- version bump every other action gets, so there's no reason left to keep
+-- them as separate unscoped functions. Drop the old signatures explicitly
+-- (create or replace can't do this across a changed argument list, and
+-- Postgres would otherwise leave the old overloads in place as dead code).
 -- ----------------------------------------------------------------------
+drop function if exists advance_era(uuid);
+drop function if exists set_era_sequence(uuid, text[]);
+drop function if exists set_starting_cash(uuid, int);
+drop function if exists reset_game(uuid);
+drop table if exists game_state;
 
--- Fix F: hard end. Advances past the end of era_sequence sets status to
--- 'finished' and touches nothing else -- no wraparound back to era 0 like
--- the reference server. The first call (status still 'lobby') deals
--- era_sequence[0] rather than skipping past it, since there's no separate
--- "start game" action in the spec.
-create or replace function advance_era(p_actor_id uuid)
-returns jsonb language plpgsql security definer set search_path = public as $$
+-- ----------------------------------------------------------------------
+-- create_room(): the host-facing "new game" flow -- picks the era(s), team
+-- count and team names in one shot. Kept separate from apply_room_action()
+-- since there's no existing room/version to lock yet; everything else it
+-- touches (syndicate color-cycling, join-code generation) mirrors the
+-- REGISTER_SYNDICATE branch above exactly.
+-- ----------------------------------------------------------------------
+create or replace function create_room(
+  p_actor_id uuid, p_name text, p_era_sequence text[], p_starting_cash int, p_team_names text[]
+) returns jsonb language plpgsql security definer set search_path = public as $$
 declare
   v_role text;
-  v_state game_state%rowtype;
-  v_next_index int;
-  v_era_id text;
+  v_room_id uuid;
+  v_slug text;
+  v_colors text[] := array['#E8B44A','#34D399','#60A5FA','#F472B6','#F59E0B','#A78BFA','#F43F5E','#22D3EE'];
+  v_name text;
+  v_idx int := 0;
+  v_syn_id uuid;
 begin
   select app_role into v_role from profiles where id = p_actor_id;
   if v_role is null or v_role not in ('host', 'admin') then raise exception 'FORBIDDEN'; end if;
-
-  select * into v_state from game_state where id = 1 for update;
-  v_next_index := case when v_state.status = 'lobby' then 0 else v_state.current_era_index + 1 end;
-
-  if v_next_index > array_length(v_state.era_sequence, 1) - 1 then
-    update game_state set status = 'finished' where id = 1;
-    return jsonb_build_object('status', 'finished');
+  if p_name is null or length(trim(p_name)) = 0 then raise exception 'NAME_REQUIRED'; end if;
+  if p_era_sequence is null or array_length(p_era_sequence, 1) is null then raise exception 'ERA_SEQUENCE_REQUIRED'; end if;
+  if p_team_names is null or array_length(p_team_names, 1) is null or array_length(p_team_names, 1) > 8 then
+    raise exception 'INVALID_TEAM_COUNT';
   end if;
+  if p_starting_cash is null or p_starting_cash <= 0 then raise exception 'INVALID_AMOUNT'; end if;
 
-  v_era_id := v_state.era_sequence[v_next_index + 1]; -- pg arrays are 1-indexed
+  v_slug := lower(regexp_replace(p_name, '[^a-zA-Z0-9]+', '-', 'g'))
+    || '-' || substr(md5(random()::text || clock_timestamp()::text), 1, 5);
 
-  update game_state set status = 'active', current_era_index = v_next_index where id = 1;
-  -- `where true`: this project has Postgres's unqualified-update/delete
-  -- protection enabled, which rejects any UPDATE/DELETE with no WHERE
-  -- clause at all -- these three are intentionally unscoped (every room,
-  -- every syndicate, every pending turn), so `where true` satisfies the
-  -- guard without changing what rows are affected.
-  update rooms set era_status = 'active', version = version + 1 where true;
-  update syndicates set era_starting_cash = cash where true;
-  delete from pending_turns where true; -- abandon any open turn across every room on era change
+  insert into rooms (slug, name, status, era_sequence, starting_cash, created_by)
+  values (v_slug, p_name, 'lobby', p_era_sequence, p_starting_cash, p_actor_id)
+  returning id into v_room_id;
 
-  return jsonb_build_object('status', 'active', 'era_id', v_era_id);
-end;
-$$;
+  foreach v_name in array p_team_names loop
+    insert into syndicates (room_id, name, color, join_code, turn_order, cash, era_starting_cash)
+    values (
+      v_room_id, v_name, v_colors[(v_idx % 8) + 1],
+      upper(substr(md5(random()::text || clock_timestamp()::text), 1, 6)),
+      v_idx, p_starting_cash, p_starting_cash
+    )
+    returning id into v_syn_id;
+    insert into transactions (room_id, syndicate_id, action_type, amount, note)
+    values (v_room_id, v_syn_id, 'REGISTER', p_starting_cash, 'Syndicate registered');
+    v_idx := v_idx + 1;
+  end loop;
 
-create or replace function set_era_sequence(p_actor_id uuid, p_era_ids text[])
-returns jsonb language plpgsql security definer set search_path = public as $$
-declare
-  v_role text;
-  v_status text;
-begin
-  select app_role into v_role from profiles where id = p_actor_id;
-  if v_role is distinct from 'admin' then raise exception 'FORBIDDEN'; end if;
-  select status into v_status from game_state where id = 1;
-  if v_status <> 'lobby' then raise exception 'GAME_ALREADY_STARTED'; end if;
-  update game_state set era_sequence = p_era_ids where id = 1;
-  return jsonb_build_object('era_sequence', to_jsonb(p_era_ids));
-end;
-$$;
-
-create or replace function set_starting_cash(p_actor_id uuid, p_amount int)
-returns jsonb language plpgsql security definer set search_path = public as $$
-declare
-  v_role text;
-  v_status text;
-begin
-  select app_role into v_role from profiles where id = p_actor_id;
-  if v_role is distinct from 'admin' then raise exception 'FORBIDDEN'; end if;
-  select status into v_status from game_state where id = 1;
-  if v_status <> 'lobby' then raise exception 'GAME_ALREADY_STARTED'; end if;
-  if p_amount <= 0 then raise exception 'INVALID_AMOUNT'; end if;
-  update game_state set starting_cash = p_amount where id = 1;
-  return jsonb_build_object('starting_cash', p_amount);
-end;
-$$;
-
-create or replace function reset_game(p_actor_id uuid)
-returns jsonb language plpgsql security definer set search_path = public as $$
-declare
-  v_role text;
-begin
-  select app_role into v_role from profiles where id = p_actor_id;
-  if v_role is distinct from 'admin' then raise exception 'FORBIDDEN'; end if;
-
-  delete from transactions where true;
-  delete from pending_turns where true;
-  delete from syndicates where true; -- cascades to syndicate_members
-  delete from room_decks where true;
-  update rooms set
-    phase = 'lobby', era_status = 'active', turn_index = 0,
-    round_ending = false, timer_deadline = null, version = version + 1
-  where true;
-  update game_state set status = 'lobby', current_era_index = 0 where id = 1;
-
-  return jsonb_build_object('status', 'reset');
+  return jsonb_build_object('room_id', v_room_id, 'slug', v_slug);
 end;
 $$;
 

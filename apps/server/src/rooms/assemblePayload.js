@@ -31,21 +31,22 @@ function toSyndicateView(row, audience) {
  * The ONE place stripCards() is called. Nothing else in the codebase may
  * read pending_turns.drawn_cards and hand it to a response or broadcast
  * without going through this function first.
- * @param {object} room
+ * @param {object} room the rooms row -- carries its own era_sequence/
+ *   current_era_index/status/starting_cash (formerly a global game_state
+ *   singleton; each room now runs its own era independently)
  * @param {Array<object>} syndicates
  * @param {object|null} pendingTurn
  * @param {Array<object>} transactions
  * @param {'host'|'room'|'team'} audience
- * @param {object} gameState the global game_state row (era_sequence, current_era_index, status)
  */
-export function assembleRoomPayload(room, syndicates, pendingTurn, transactions, audience, gameState) {
+export function assembleRoomPayload(room, syndicates, pendingTurn, transactions, audience) {
   return {
     game: {
-      status: gameState.status,
-      eraId: gameState.era_sequence?.[gameState.current_era_index] ?? null,
-      eraSequence: gameState.era_sequence,
-      currentEraIndex: gameState.current_era_index,
-      startingCash: gameState.starting_cash,
+      status: room.status,
+      eraId: room.era_sequence?.[room.current_era_index] ?? null,
+      eraSequence: room.era_sequence,
+      currentEraIndex: room.current_era_index,
+      startingCash: room.starting_cash,
     },
     room: {
       slug: room.slug,
@@ -84,13 +85,16 @@ export function assembleRoomPayload(room, syndicates, pendingTurn, transactions,
 
 /**
  * Slim cross-room leaderboard delta for the 'global' channel — cash and the
- * era-over-era delta only, no card/board detail at all.
+ * era-over-era delta only, no card/board detail at all. Carries this room's
+ * own eraId since every room can now be on a different era.
  * @param {string} roomSlug
  * @param {Array<object>} syndicates
+ * @param {string|null} eraId
  */
-export function assembleStandingsPayload(roomSlug, syndicates) {
+export function assembleStandingsPayload(roomSlug, syndicates, eraId) {
   return {
     roomSlug,
+    eraId,
     standings: syndicates.map((row) => ({
       syndicateId: row.id,
       name: row.name,

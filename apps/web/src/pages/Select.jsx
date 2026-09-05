@@ -53,6 +53,12 @@ export default function Select() {
           <h1 className={styles.heading}>Finoploy</h1>
           <p className={styles.subheading}>Choose a view and a room to enter.</p>
 
+          {isHost && (
+            <button type="button" className={styles.newGameButton} onClick={() => navigate('/rooms/new')}>
+              + New Game
+            </button>
+          )}
+
           <div className={styles.segmented} role="radiogroup" aria-label="Surface">
             {SURFACES.map(({ id, label, description, icon: Icon, requiresHost }) => {
               const disabled = requiresHost && !isHost;
