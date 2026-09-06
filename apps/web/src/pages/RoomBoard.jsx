@@ -2,10 +2,12 @@ import { useParams } from 'react-router-dom';
 import { BOARD, ERA_BRIEFINGS } from '@estate/content/client';
 import { useAuth } from '../context/AuthContext.jsx';
 import { useRoomConnection } from '../hooks/useRoomConnection.js';
+import { useRoomAction } from '../hooks/useRoomAction.js';
 import { useCountdown, formatCountdown } from '../hooks/useCountdown.js';
 import { getGridPosition } from '../lib/boardGeometry.js';
 import { formatMoney, formatSignedMoney } from '../lib/money.js';
 import PageLoader from '../components/PageLoader.jsx';
+import ResolvePanel from '../components/turn/ResolvePanel.jsx';
 import styles from './RoomBoard.module.css';
 
 const GROUP_VAR = (group) => `var(--group-${group}, var(--border-hi))`;
@@ -31,7 +33,6 @@ function BoardSpace({ space, tokens }) {
   return (
     <div className={styles.assetSpace} style={{ ...style, '--group-color': GROUP_VAR(space.group) }}>
       <div className={styles.groupBar} />
-      <span className={styles.assetName}>{space.name}</span>
       {tokens.length > 0 && (
         <div className={styles.tokenGrid}>
           {tokens.map((s) => (
@@ -53,7 +54,7 @@ function CenterFinished() {
   );
 }
 
-function CenterIdle({ era, turnSyndicate, pendingTurn }) {
+function CenterIdle({ era, turnSyndicate, pendingTurn, isHost, busy, onRoll, onSkip }) {
   return (
     <div className={styles.centerIdle}>
       {era && (
@@ -70,6 +71,16 @@ function CenterIdle({ era, turnSyndicate, pendingTurn }) {
         <div className={styles.dice}>
           <span className={`${styles.die} dice`}>{pendingTurn.dice[0]}</span>
           <span className={`${styles.die} dice`}>{pendingTurn.dice[1]}</span>
+        </div>
+      )}
+      {isHost && (
+        <div className={styles.hostControls}>
+          <button type="button" className={styles.rollButton} disabled={busy} onClick={onRoll}>
+            ROLL
+          </button>
+          <button type="button" className={styles.skipButton} disabled={busy} onClick={onSkip}>
+            Skip Turn
+          </button>
         </div>
       )}
     </div>
@@ -91,7 +102,7 @@ function CenterCards({ pendingTurn }) {
   );
 }
 
-function CenterNews({ pendingTurn }) {
+function CenterNews({ pendingTurn, isHost, syndicates, busy, onResolve }) {
   return (
     <div className={styles.centerNews}>
       <span className={styles.newsGlyph} aria-hidden="true">?</span>
@@ -101,23 +112,31 @@ function CenterNews({ pendingTurn }) {
           <p className={styles.newsBody}>{pendingTurn.newsCard.body}</p>
         </>
       )}
+      {isHost && (
+        <ResolvePanel kind="news" pendingTurn={pendingTurn} syndicates={syndicates} busy={busy} onResolve={onResolve} />
+      )}
     </div>
   );
 }
 
-function CenterCorner({ pendingTurn }) {
+function CenterCorner({ pendingTurn, isHost, syndicates, busy, onResolve }) {
   return (
     <div className={styles.centerCorner}>
       <span className={styles.newsGlyph} aria-hidden="true">!</span>
       <span className={styles.newsTitle}>{pendingTurn.cornerEvent?.replace(/_/g, ' ')}</span>
+      {isHost && (
+        <ResolvePanel kind="corner" pendingTurn={pendingTurn} syndicates={syndicates} busy={busy} onResolve={onResolve} />
+      )}
     </div>
   );
 }
 
 export default function RoomBoard() {
   const { slug } = useParams();
-  const { session } = useAuth();
+  const { session, profile } = useAuth();
   const state = useRoomConnection(slug, session?.access_token);
+  const { busy, act } = useRoomAction(slug, session?.access_token);
+  const isHost = ['host', 'admin'].includes(profile?.app_role);
 
   // Pending-turn decisions (60-90s to force-submit/resolve) take priority
   // over the room's own research-phase timer when both happen to be set.
@@ -147,11 +166,35 @@ export default function RoomBoard() {
         <div className={styles.center}>
           {game?.status === 'finished' && <CenterFinished />}
           {game?.status !== 'finished' && !pendingTurn && (
-            <CenterIdle era={era} turnSyndicate={turnSyndicate} pendingTurn={pendingTurn} />
+            <CenterIdle
+              era={era}
+              turnSyndicate={turnSyndicate}
+              pendingTurn={pendingTurn}
+              isHost={isHost}
+              busy={busy}
+              onRoll={() => act('ROLL', {})}
+              onSkip={() => act('SKIP_TURN', {})}
+            />
           )}
           {pendingTurn?.stage === 'awaiting_pick' && <CenterCards pendingTurn={pendingTurn} />}
-          {pendingTurn?.stage === 'news' && <CenterNews pendingTurn={pendingTurn} />}
-          {pendingTurn?.stage === 'corner' && <CenterCorner pendingTurn={pendingTurn} />}
+          {pendingTurn?.stage === 'news' && (
+            <CenterNews
+              pendingTurn={pendingTurn}
+              isHost={isHost}
+              syndicates={syndicates}
+              busy={busy}
+              onResolve={(targetId) => act('RESOLVE_NEWS', { targetId })}
+            />
+          )}
+          {pendingTurn?.stage === 'corner' && (
+            <CenterCorner
+              pendingTurn={pendingTurn}
+              isHost={isHost}
+              syndicates={syndicates}
+              busy={busy}
+              onResolve={(targetId) => act('RESOLVE_CORNER', { targetId })}
+            />
+          )}
         </div>
       </div>
 

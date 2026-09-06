@@ -1,0 +1,38 @@
+.resolveRow {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-1);
+}
+
+.select {
+  background: var(--surface-2);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  color: var(--text);
+  padding: 6px 8px;
+  font-family: var(--font-ui);
+  font-size: var(--text-sm);
+}
+
+.resolveButton {
+  background: var(--accent);
+  border: none;
+  border-radius: var(--radius);
+  color: var(--color-on-accent);
+  padding: 6px 14px;
+  font-family: var(--font-ui);
+  font-size: var(--text-sm);
+  font-weight: 700;
+  cursor: pointer;
+  transition: opacity var(--motion-state);
+}
+
+.resolveButton:hover:not(:disabled) {
+  opacity: 0.9;
+}
+
+.resolveButton:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}

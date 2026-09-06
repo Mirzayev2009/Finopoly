@@ -72,14 +72,6 @@
   background: var(--group-color);
 }
 
-.assetName {
-  font-size: 10px;
-  line-height: 1.15;
-  text-align: center;
-  color: var(--text-2);
-  padding: 0 2px;
-}
-
 .tokenGrid {
   position: absolute;
   bottom: 2px;
@@ -148,6 +140,50 @@
 .dice {
   display: flex;
   gap: var(--space-2);
+}
+
+.hostControls {
+  display: flex;
+  gap: var(--space-1);
+  margin-top: var(--space-1);
+}
+
+.rollButton {
+  padding: var(--space-2) var(--space-4);
+  background: var(--accent);
+  color: var(--color-on-accent);
+  border: none;
+  border-radius: var(--radius);
+  font-family: var(--font-ui);
+  font-size: var(--text-base);
+  font-weight: 700;
+  cursor: pointer;
+  transition: opacity var(--motion-state);
+}
+
+.rollButton:hover:not(:disabled) {
+  opacity: 0.9;
+}
+
+.rollButton:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+
+.skipButton {
+  padding: var(--space-2) var(--space-3);
+  background: var(--surface-2);
+  color: var(--text);
+  border: 1px solid var(--border-hi);
+  border-radius: var(--radius);
+  font-family: var(--font-ui);
+  font-size: var(--text-base);
+  cursor: pointer;
+}
+
+.skipButton:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
 }
 
 .die {

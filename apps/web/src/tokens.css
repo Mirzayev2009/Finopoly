@@ -1,32 +1,38 @@
 /**
  * Design tokens. Nothing literal (colors, spacing, motion durations) outside
  * this file — every surface consumes these custom properties. Minimal, dark,
- * high-contrast, editorial. The only saturated color anywhere outside this
- * file is syndicate identity, asset group bars, and gain/loss, all of which
- * are themselves tokens defined here.
+ * high-contrast, editorial. Brand palette is white/red/black; green is kept
+ * for --gain only since a 3-hue brand palette can't also carry "up vs. down"
+ * financial meaning. The only saturated color anywhere outside this file is
+ * syndicate identity, asset group bars, and gain/loss, all of which are
+ * themselves tokens defined here.
  */
 :root {
-  --bg: #0a0a0b;
-  --surface: #131316;
-  --surface-2: #1b1b20;
-  --border: #26262b;
-  --border-hi: #3a3a42;
-  --text: #fafafa;
-  --text-2: #a1a1aa;
-  --text-3: #6b6b75;
-  --accent: #e8b44a;
+  --bg: #0a0a0a;
+  --surface: #151515;
+  --surface-2: #1f1f1f;
+  --border: #2b2b2b;
+  --border-hi: #404040;
+  --text: #ffffff;
+  --text-2: #b8b8b8;
+  --text-3: #7d7d7d;
+  --accent: #e4032e;
   --gain: #34d399;
-  --loss: #f43f5e;
+  --loss: #ff4d5e;
 
-  /* 8 muted group hues, legible at 3px width on --bg — match packages/content/board.js's groups */
-  --group-financials: #8fb3d9;
-  --group-consumer: #d99a8f;
-  --group-energy: #d9c08f;
-  --group-realestate: #9ad98f;
-  --group-tech: #8fd9cf;
-  --group-industrials: #b08fd9;
-  --group-macro: #d98fc0;
-  --group-crypto: #d98f9a;
+  /* 8 muted group hues, legible at 3px width on --bg — match packages/content/board.js's groups.
+     Board spaces no longer carry name text (packages/content/board.js's flavor
+     names are era-independent flavor text now removed from render), so these
+     just need to read as 8 distinct-but-restrained tints within the white/
+     red/black family rather than a rainbow. */
+  --group-financials: #8a8a8a;
+  --group-consumer: #b3444f;
+  --group-energy: #c9c9c9;
+  --group-realestate: #6e6e6e;
+  --group-tech: #d9d9d9;
+  --group-industrials: #9c2b34;
+  --group-macro: #4d4d4d;
+  --group-crypto: #e4032e;
 
   --font-ui: 'Inter Tight', 'Geist', system-ui, -apple-system, sans-serif;
   --font-mono: 'IBM Plex Mono', ui-monospace, 'SF Mono', monospace;
@@ -88,11 +94,11 @@
   --color-text-muted: var(--text-2);
   --color-text-faint: var(--text-3);
   --color-accent: var(--accent);
-  --color-accent-strong: #d9a53c;
-  --color-accent-soft: rgba(232, 180, 74, 0.14);
-  --color-on-accent: var(--bg);
+  --color-accent-strong: #b3021f;
+  --color-accent-soft: rgba(228, 3, 46, 0.16);
+  --color-on-accent: #ffffff;
   --color-danger: var(--loss);
-  --color-danger-soft: rgba(244, 63, 94, 0.14);
+  --color-danger-soft: rgba(255, 77, 94, 0.14);
   --font-body: var(--font-ui);
   --font-display: var(--font-ui);
 }

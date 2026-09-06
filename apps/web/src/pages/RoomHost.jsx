@@ -3,10 +3,11 @@ import { Navigate, useParams } from 'react-router-dom';
 import { ERA_BRIEFINGS } from '@estate/content/client';
 import { useAuth } from '../context/AuthContext.jsx';
 import { useHostConnection } from '../hooks/useHostConnection.js';
-import { callRoomAction } from '../lib/roomActions.js';
+import { useRoomAction } from '../hooks/useRoomAction.js';
 import { formatMoney, formatSignedMoney } from '../lib/money.js';
 import PageLoader from '../components/PageLoader.jsx';
 import TopBar from '../components/TopBar.jsx';
+import ResolvePanel from '../components/turn/ResolvePanel.jsx';
 import styles from './RoomHost.module.css';
 
 const QUICK_TIMERS = [
@@ -20,7 +21,7 @@ export default function RoomHost() {
   const { slug } = useParams();
   const { session, profile } = useAuth();
   const state = useHostConnection(slug, session?.access_token);
-  const [busy, setBusy] = useState(false);
+  const { busy, act } = useRoomAction(slug, session?.access_token);
   const [newSyndicateName, setNewSyndicateName] = useState('');
   const [resetConfirm, setResetConfirm] = useState('');
   const [showDanger, setShowDanger] = useState(false);
@@ -53,18 +54,6 @@ export default function RoomHost() {
   // so any host running their own room may use them, not just admins.
   const isHost = ['host', 'admin'].includes(profile?.app_role);
 
-  async function act(actionType, payload) {
-    setBusy(true);
-    try {
-      await callRoomAction(slug, session.access_token, actionType, payload);
-    } catch (e) {
-      // eslint-disable-next-line no-alert
-      alert(e.message);
-    } finally {
-      setBusy(false);
-    }
-  }
-
   function toggleEraInSequence(eraId) {
     setEraSequenceDraft((current) => (
       current.includes(eraId) ? current.filter((id) => id !== eraId) : [...current, eraId]
@@ -72,30 +61,13 @@ export default function RoomHost() {
   }
 
   async function saveEraSequence() {
-    setBusy(true);
-    try {
-      await callRoomAction(slug, session.access_token, 'SET_ERA_SEQUENCE', { eraIds: eraSequenceDraft });
-    } catch (e) {
-      // eslint-disable-next-line no-alert
-      alert(e.message);
-    } finally {
-      setBusy(false);
-    }
+    await act('SET_ERA_SEQUENCE', { eraIds: eraSequenceDraft });
   }
 
   async function saveStartingCash() {
     const amount = Number(startingCashDraft);
     if (!amount || amount <= 0) return;
-    setBusy(true);
-    try {
-      await callRoomAction(slug, session.access_token, 'SET_STARTING_CASH', { amount });
-      setStartingCashDraft('');
-    } catch (e) {
-      // eslint-disable-next-line no-alert
-      alert(e.message);
-    } finally {
-      setBusy(false);
-    }
+    if (await act('SET_STARTING_CASH', { amount })) setStartingCashDraft('');
   }
 
   return (
@@ -339,46 +311,20 @@ function InvestmentPanel({ pendingTurn, syndicate, busy, onForceSubmit }) {
 }
 
 function NewsPanel({ pendingTurn, syndicates, busy, onResolve }) {
-  const [target, setTarget] = useState('');
-  const needsTarget = pendingTurn.newsCard?.needs === 'target' || pendingTurn.newsCard?.needs === 'target+coin';
-
   return (
     <div className={styles.pendingPanel}>
       <h3 className={styles.pendingTitle}>{pendingTurn.newsCard?.title ?? 'Market news'}</h3>
       <p className={styles.newsBody}>{pendingTurn.newsCard?.body}</p>
-      {needsTarget && (
-        <select value={target} onChange={(e) => setTarget(e.target.value)}>
-          <option value="">Choose a target…</option>
-          {syndicates.map((s) => (
-            <option key={s.id} value={s.id}>{s.name}</option>
-          ))}
-        </select>
-      )}
-      <button type="button" disabled={busy || (needsTarget && !target)} onClick={() => onResolve(target || undefined)}>
-        Resolve
-      </button>
+      <ResolvePanel kind="news" pendingTurn={pendingTurn} syndicates={syndicates} busy={busy} onResolve={onResolve} />
     </div>
   );
 }
 
 function CornerPanel({ pendingTurn, syndicates, busy, onResolve }) {
-  const [target, setTarget] = useState('');
-  const needsTarget = pendingTurn.cornerEvent === 'CORPORATE_BUYOUT';
-
   return (
     <div className={styles.pendingPanel}>
       <h3 className={styles.pendingTitle}>{pendingTurn.cornerEvent?.replace(/_/g, ' ')}</h3>
-      {needsTarget && (
-        <select value={target} onChange={(e) => setTarget(e.target.value)}>
-          <option value="">Choose a target…</option>
-          {syndicates.map((s) => (
-            <option key={s.id} value={s.id}>{s.name}</option>
-          ))}
-        </select>
-      )}
-      <button type="button" disabled={busy || (needsTarget && !target)} onClick={() => onResolve(target || undefined)}>
-        Resolve
-      </button>
+      <ResolvePanel kind="corner" pendingTurn={pendingTurn} syndicates={syndicates} busy={busy} onResolve={onResolve} />
     </div>
   );
 }
