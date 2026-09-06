@@ -339,9 +339,12 @@ function SyndicateRow({ syndicate: s, busy, act }) {
       <span className={styles.chip} style={{ background: s.color }} />
       <div className={styles.syndicateInfo}>
         <span className={styles.syndicateName}>{s.name}</span>
+        <span className={styles.codeBadge}>
+          <span className={styles.codeLabel}>CODE</span>
+          <span className={styles.codeValue}>{s.joinCode}</span>
+        </span>
         <span className={`${styles.syndicateCash} money`}>{formatMoney(s.cash)}</span>
         <span className={styles.syndicatePosition}>pos {s.position}</span>
-        <span className={styles.syndicateCode}>{s.joinCode}</span>
         {activeFlags.length > 0 && (
           <span className={styles.flags}>{activeFlags.join(', ')}</span>
         )}
