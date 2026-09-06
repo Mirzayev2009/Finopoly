@@ -140,14 +140,32 @@ create trigger on_auth_user_created
   after insert on auth.users
   for each row execute function public.handle_new_user();
 
+-- Some accounts predate email/display_name/app_role existing on `profiles`
+-- at all (created before handle_new_user() wrote them) and are still stuck
+-- with email/display_name null and a leftover pre-'player'/'host'/'admin'
+-- role value from whatever this column held even earlier (seen in the
+-- wild: 'viewer') -- backfill those from auth.users so the role promotion
+-- right below can actually find and fix them by an accurate value.
+update profiles p set
+  email = coalesce(p.email, u.email),
+  display_name = coalesce(
+    p.display_name,
+    u.raw_user_meta_data ->> 'full_name',
+    u.raw_user_meta_data ->> 'name',
+    split_part(u.email, '@', 1)
+  )
+from auth.users u
+where u.id = p.id and p.email is null;
+
 -- One-time promotion for accounts that already existed before "everyone
--- with a real account can host" became the default above -- only real
--- (non-anonymous) accounts still sitting at the old 'player' default get
--- bumped to 'host'; anonymous player sessions and anyone already
--- host/admin are untouched.
+-- with a real account can host" became the default above -- any real
+-- (non-anonymous) account not already host/admin gets bumped to 'host',
+-- regardless of what legacy value its app_role held (not just 'player' --
+-- see the email backfill just above for why some are still on much older
+-- values); anonymous player sessions are untouched.
 update profiles p set app_role = 'host'
 from auth.users u
-where u.id = p.id and coalesce(u.is_anonymous, false) = false and p.app_role = 'player';
+where u.id = p.id and coalesce(u.is_anonymous, false) = false and p.app_role not in ('host', 'admin');
 
 -- Pre-existing auth.users rows created before this trigger existed will not
 -- get a profiles row retroactively (no backfill). api/profiles/me.js already
