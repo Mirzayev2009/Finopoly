@@ -36,6 +36,20 @@
   color: var(--text-2);
 }
 
+.boardLink {
+  padding: 2px var(--space-1);
+  border: 1px solid var(--accent);
+  border-radius: var(--radius);
+  font-size: var(--text-xs);
+  font-weight: 600;
+  color: var(--accent);
+  text-decoration: none;
+}
+
+.boardLink:hover {
+  background: var(--color-accent-soft);
+}
+
 .phaseGroup,
 .timerGroup {
   display: flex;

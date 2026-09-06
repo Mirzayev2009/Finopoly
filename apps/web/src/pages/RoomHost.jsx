@@ -78,6 +78,9 @@ export default function RoomHost() {
         <span className={styles.eraChip}>
           {game?.status === 'finished' ? 'Game complete' : era?.title ?? 'No era active'}
         </span>
+        <a className={styles.boardLink} href={`/room/${slug}/board`} target="_blank" rel="noreferrer">
+          View Board ↗
+        </a>
         <button type="button" disabled={busy} onClick={() => act('SET_PHASE', { phase: 'briefing' })}>
           {room.phase}
         </button>

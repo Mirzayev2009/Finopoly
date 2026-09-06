@@ -159,6 +159,11 @@ export default function RoomBoard() {
 
   return (
     <div className={styles.page}>
+      {isHost && (
+        <a className={styles.hostLink} href={`/room/${slug}/host`} target="_blank" rel="noreferrer">
+          Host Settings ↗
+        </a>
+      )}
       <div className={styles.board}>
         {BOARD.map((space) => (
           <BoardSpace key={space.id} space={space} tokens={tokensByPosition.get(space.id) ?? []} />
