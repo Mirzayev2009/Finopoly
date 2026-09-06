@@ -113,12 +113,20 @@ begin
     split_part(new.email, '@', 1)
   );
 
-  insert into public.profiles (id, email, display_name, username)
+  -- Everyone with a real account (Google/GitHub/email — anything that isn't
+  -- an anonymous player session) can host and create their own games by
+  -- default now; only anonymous sign-ins (apps/web's AnonymousRoute, used
+  -- by /join and /team so players never need a real account) stay
+  -- 'player'. On conflict, only email/display_name are touched — never
+  -- overwrite an already-set app_role, so promoting/demoting someone by
+  -- hand always sticks across future logins.
+  insert into public.profiles (id, email, display_name, username, app_role)
   values (
     new.id,
     new.email,
     resolved_name,
-    split_part(new.email, '@', 1) || '_' || substr(new.id::text, 1, 8)
+    split_part(new.email, '@', 1) || '_' || substr(new.id::text, 1, 8),
+    case when coalesce(new.is_anonymous, false) then 'player' else 'host' end
   )
   on conflict (id) do update
     set email = excluded.email,
@@ -131,6 +139,15 @@ drop trigger if exists on_auth_user_created on auth.users;
 create trigger on_auth_user_created
   after insert on auth.users
   for each row execute function public.handle_new_user();
+
+-- One-time promotion for accounts that already existed before "everyone
+-- with a real account can host" became the default above -- only real
+-- (non-anonymous) accounts still sitting at the old 'player' default get
+-- bumped to 'host'; anonymous player sessions and anyone already
+-- host/admin are untouched.
+update profiles p set app_role = 'host'
+from auth.users u
+where u.id = p.id and coalesce(u.is_anonymous, false) = false and p.app_role = 'player';
 
 -- Pre-existing auth.users rows created before this trigger existed will not
 -- get a profiles row retroactively (no backfill). api/profiles/me.js already
