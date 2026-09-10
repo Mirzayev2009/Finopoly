@@ -1,40 +1,38 @@
 /**
  * Design tokens. Nothing literal (colors, spacing, motion durations) outside
- * this file — every surface consumes these custom properties. Minimal, dark,
- * high-contrast, editorial. Brand palette is white/red/black; green is kept
- * for --gain only since a 3-hue brand palette can't also carry "up vs. down"
- * financial meaning. The only saturated color anywhere outside this file is
- * syndicate identity, asset group bars, and gain/loss, all of which are
- * themselves tokens defined here.
+ * this file — every surface consumes these custom properties.
+ *
+ * THEME: Warm-cream / retro / editorial — inspired by Ozod's "Market Masters"
+ * Host Control Panel. Brand palette is cream/red/black; green is kept for
+ * --gain only since the palette can't also carry "up vs. down" financial
+ * meaning. The only saturated color outside this file is syndicate identity,
+ * asset group bars, and gain/loss.
  */
 :root {
-  --bg: #0a0a0a;
-  --surface: #151515;
-  --surface-2: #1f1f1f;
-  --border: #2b2b2b;
-  --border-hi: #404040;
-  --text: #ffffff;
-  --text-2: #b8b8b8;
-  --text-3: #7d7d7d;
-  --accent: #e4032e;
-  --gain: #34d399;
-  --loss: #ff4d5e;
+  --bg: #FBF8EE;
+  --surface: #FFFFFF;
+  --surface-2: #F5F0E8;
+  --border: #2A2A2A;
+  --border-hi: #1A1A1A;
+  --text: #1A1A1A;
+  --text-2: #555555;
+  --text-3: #888888;
+  --accent: #C41230;
+  --gain: #0A8754;
+  --loss: #C41230;
 
-  /* 8 muted group hues, legible at 3px width on --bg — match packages/content/board.js's groups.
-     Board spaces no longer carry name text (packages/content/board.js's flavor
-     names are era-independent flavor text now removed from render), so these
-     just need to read as 8 distinct-but-restrained tints within the white/
-     red/black family rather than a rainbow. */
-  --group-financials: #8a8a8a;
-  --group-consumer: #b3444f;
-  --group-energy: #c9c9c9;
-  --group-realestate: #6e6e6e;
-  --group-tech: #d9d9d9;
-  --group-industrials: #9c2b34;
-  --group-macro: #4d4d4d;
-  --group-crypto: #e4032e;
+  /* 8 muted group hues — adjusted for legibility on the cream background. */
+  --group-financials: #6B6B6B;
+  --group-consumer: #9E3040;
+  --group-energy: #8B7E6A;
+  --group-realestate: #5A5A5A;
+  --group-tech: #3A3A3A;
+  --group-industrials: #7A2A32;
+  --group-macro: #4D4D4D;
+  --group-crypto: #C41230;
 
   --font-ui: 'Inter Tight', 'Geist', system-ui, -apple-system, sans-serif;
+  --font-display: 'Press Start 2P', 'Inter Tight', system-ui, sans-serif;
   --font-mono: 'IBM Plex Mono', ui-monospace, 'SF Mono', monospace;
 
   --text-xs: 12px;
@@ -66,9 +64,9 @@
   --radius-lg: 14px;
   --radius-full: 999px;
 
-  --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.35);
-  --shadow-md: 0 12px 32px -12px rgba(0, 0, 0, 0.55);
-  --shadow-lg: 0 28px 64px -20px rgba(0, 0, 0, 0.65);
+  --shadow-sm: 0 1px 3px rgba(0, 0, 0, 0.08);
+  --shadow-md: 0 4px 16px -4px rgba(0, 0, 0, 0.12);
+  --shadow-lg: 0 12px 40px -12px rgba(0, 0, 0, 0.18);
 
   --ease-out: cubic-bezier(0.16, 1, 0.3, 1);
   --duration-fast: 120ms;
@@ -87,20 +85,28 @@
      type scale as the rest of the app instead of maintaining its own. */
   --color-bg: var(--bg);
   --color-surface: var(--surface);
+  --color-surface-2: var(--surface-2);
   --color-surface-raised: var(--surface-2);
   --color-border: var(--border);
   --color-border-strong: var(--border-hi);
   --color-text: var(--text);
+  --color-text-subtle: var(--text-2);
   --color-text-muted: var(--text-2);
   --color-text-faint: var(--text-3);
   --color-accent: var(--accent);
-  --color-accent-strong: #b3021f;
-  --color-accent-soft: rgba(228, 3, 46, 0.16);
+  --color-accent-strong: #9A0E24;
+  --color-accent-soft: rgba(196, 18, 48, 0.10);
   --color-on-accent: #ffffff;
+  --color-gain: var(--gain);
+  --color-gain-dark: #0A8754;
+  --color-loss: var(--loss);
   --color-danger: var(--loss);
-  --color-danger-soft: rgba(255, 77, 94, 0.14);
+  --color-danger-soft: rgba(196, 18, 48, 0.08);
   --font-body: var(--font-ui);
-  --font-display: var(--font-ui);
+  --font-pixel: var(--font-display);
+  --font-mono-alias: var(--font-mono);
+  --motion-fast: 120ms ease-out;
+  --radius-xs: 4px;
 }
 
 * {

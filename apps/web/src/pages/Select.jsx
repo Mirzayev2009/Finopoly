@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Monitor, SlidersHorizontal, DeviceMobile } from '@phosphor-icons/react';
+import { Monitor, SlidersHorizontal } from '@phosphor-icons/react';
 import { useAuth } from '../context/AuthContext.jsx';
 import { fetchRoomList } from '../lib/roomActions.js';
 import TopBar from '../components/TopBar.jsx';
@@ -9,7 +9,6 @@ import styles from './Select.module.css';
 const SURFACES = [
   { id: 'board', label: 'Projector Board', description: 'Read-only display for the classroom projector', icon: Monitor },
   { id: 'host', label: 'Host Control', description: 'Run the room: roll, resolve turns, adjust cash', icon: SlidersHorizontal, requiresHost: true },
-  { id: 'play', label: 'Team Play', description: 'Join a syndicate with your team’s join code', icon: DeviceMobile, noRoom: true },
 ];
 
 export default function Select() {
@@ -34,13 +33,7 @@ export default function Select() {
       .finally(() => setLoading(false));
   }, [session?.access_token]);
 
-  const selectedSurface = SURFACES.find((s) => s.id === surface);
-
   function handleContinue() {
-    if (surface === 'play') {
-      navigate('/join');
-      return;
-    }
     if (!roomSlug) return;
     navigate(`/room/${roomSlug}/${surface}`);
   }
@@ -51,7 +44,7 @@ export default function Select() {
       <div className={styles.center}>
         <div className={styles.panel}>
           <h1 className={styles.heading}>Finoploy</h1>
-          <p className={styles.subheading}>Choose a view and a room to enter.</p>
+          <p className={styles.subheading}>Select a room and surface to open.</p>
 
           {isHost && (
             <button type="button" className={styles.newGameButton} onClick={() => navigate('/rooms/new')}>
@@ -84,7 +77,7 @@ export default function Select() {
             })}
           </div>
 
-          {selectedSurface?.noRoom ? null : loading ? (
+          {loading ? (
             <p className={styles.subheading}>Loading rooms&hellip;</p>
           ) : error ? (
             <p className={styles.error}>{error}</p>
@@ -108,7 +101,7 @@ export default function Select() {
           <button
             type="button"
             className={styles.primaryButton}
-            disabled={(!selectedSurface?.noRoom && !roomSlug) || (surface === 'host' && !isHost)}
+            disabled={!roomSlug || (surface === 'host' && !isHost)}
             onClick={handleContinue}
           >
             Continue

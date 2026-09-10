@@ -10,12 +10,15 @@ import TopBar from '../components/TopBar.jsx';
 import ResolvePanel from '../components/turn/ResolvePanel.jsx';
 import styles from './RoomHost.module.css';
 
-const QUICK_TIMERS = [
-  { label: '25:00 Research', seconds: 25 * 60 },
-  { label: '1:00 Decision', seconds: 60 },
-];
-const QUICK_ADJUST = [100, 500, 1000, 5000];
 const PHASES = ['lobby', 'briefing', 'research', 'playing', 'debrief'];
+
+const ADJUSTMENT_TYPES = [
+  { id: 'pass_start', label: 'Pass Start (+)', sign: 1 },
+  { id: 'casino_win', label: 'Casino Win (+)', sign: 1 },
+  { id: 'casino_loss', label: 'Casino Loss (-)', sign: -1 },
+  { id: 'manual_penalty', label: 'Manual Penalty (-)', sign: -1 },
+  { id: 'manual_bonus', label: 'Manual Bonus (+)', sign: 1 },
+];
 
 export default function RoomHost() {
   const { slug } = useParams();
@@ -28,6 +31,11 @@ export default function RoomHost() {
   const [eraSequenceDraft, setEraSequenceDraft] = useState([]);
   const [eraSequenceSeeded, setEraSequenceSeeded] = useState(false);
   const [startingCashDraft, setStartingCashDraft] = useState('');
+
+  // Manual Adjustments panel state
+  const [adjustTarget, setAdjustTarget] = useState('');
+  const [adjustType, setAdjustType] = useState('manual_penalty');
+  const [adjustAmount, setAdjustAmount] = useState(300);
 
   // Seed the two setup drafts from this room's own state once it first
   // arrives (the initial snapshot is async — a plain useState initializer
@@ -70,58 +78,85 @@ export default function RoomHost() {
     if (await act('SET_STARTING_CASH', { amount })) setStartingCashDraft('');
   }
 
+  async function executeAdjustment() {
+    if (!adjustTarget || !adjustAmount) return;
+    const typeInfo = ADJUSTMENT_TYPES.find((t) => t.id === adjustType);
+    const signedAmount = Math.abs(adjustAmount) * typeInfo.sign;
+    const note = typeInfo.label;
+    await act('ADJUST', { syndicateId: adjustTarget, amount: signedAmount, note });
+  }
+
   return (
     <div className={styles.page}>
       <TopBar />
-      <div className={styles.topBar}>
-        <span className={styles.roomName}>{room.name}</span>
-        <span className={styles.eraChip}>
-          {game?.status === 'finished' ? 'Game complete' : era?.title ?? 'No era active'}
-        </span>
-        <a className={styles.boardLink} href={`/room/${slug}/board`} target="_blank" rel="noreferrer">
-          View Board ↗
-        </a>
-        <button type="button" disabled={busy} onClick={() => act('SET_PHASE', { phase: 'briefing' })}>
-          {room.phase}
-        </button>
+
+      {/* ── Header ── */}
+      <div className={styles.header}>
+        <h1 className={styles.pageTitle}>⚙ Host Control Panel</h1>
+        <p className={styles.pageSubtitle}>Manage room {room.name} and manual overrides</p>
+      </div>
+
+      {/* ── Phase selector ── */}
+      <div className={styles.phaseBar}>
+        <span className={styles.phaseLabel}>Phase</span>
         <div className={styles.phaseGroup}>
           {PHASES.map((p) => (
             <button
               key={p}
               type="button"
               disabled={busy}
-              className={room.phase === p ? styles.phaseActive : undefined}
+              className={`${styles.phaseBtn} ${room.phase === p ? styles.phaseBtnActive : ''}`}
               onClick={() => act('SET_PHASE', { phase: p })}
             >
               {p}
             </button>
           ))}
         </div>
-        <div className={styles.timerGroup}>
-          {QUICK_TIMERS.map((t) => (
-            <button key={t.label} type="button" disabled={busy} onClick={() => act('START_TIMER', { seconds: t.seconds })}>
-              {t.label}
-            </button>
-          ))}
-          <button type="button" disabled={busy} onClick={() => act('ADJUST_TIMER', { deltaSeconds: 60 })}>+1m</button>
-          <button type="button" disabled={busy} onClick={() => act('ADJUST_TIMER', { deltaSeconds: -60 })}>-1m</button>
-          <button type="button" disabled={busy} onClick={() => act('CLEAR_TIMER', {})}>Clear</button>
-        </div>
-        <button
-          type="button"
-          disabled={busy}
-          onClick={() => act('ADVANCE_ERA', {})}
-        >
-          Advance Era
-        </button>
       </div>
 
+      {/* ── New Game danger section ── */}
+      {isHost && (
+        <section className={styles.dangerSection}>
+          <div className={styles.dangerInfo}>
+            <span className={styles.dangerIcon}>⚠</span>
+            <div>
+              <span className={styles.dangerTitle}>New Game</span>
+              <span className={styles.dangerDesc}>Clears all teams, rooms, and transactions — start fresh.</span>
+            </div>
+          </div>
+          <button type="button" className={styles.newGameBtn} onClick={() => setShowDanger((v) => !v)}>
+            ↺ New Game
+          </button>
+          {showDanger && (
+            <div className={styles.dangerPanel}>
+              <input
+                value={resetConfirm}
+                onChange={(e) => setResetConfirm(e.target.value)}
+                placeholder='Type "RESET" to confirm'
+              />
+              <button
+                type="button"
+                disabled={resetConfirm !== 'RESET' || busy}
+                className={styles.resetBtn}
+                onClick={() => {
+                  act('RESET_ROOM', {});
+                  setResetConfirm('');
+                }}
+              >
+                Reset Room
+              </button>
+            </div>
+          )}
+        </section>
+      )}
+
+      {/* ── Game Setup (pre-start) ── */}
       {isHost && game?.status === 'lobby' && (
-        <section className={styles.setup}>
+        <section className={styles.setupSection}>
           <h2 className={styles.sectionTitle}>Game Setup (before start)</h2>
           <div className={styles.setupRow}>
-            <span className={styles.turnLabel}>Starting cash</span>
-            <span className={`${styles.turnLabel} money`}>currently {formatMoney(game.startingCash ?? 0)}</span>
+            <span className={styles.setupLabel}>Starting cash</span>
+            <span className={`${styles.setupLabel} money`}>currently {formatMoney(game.startingCash ?? 0)}</span>
             <input
               type="number"
               min={1}
@@ -135,7 +170,7 @@ export default function RoomHost() {
           </div>
 
           <div className={styles.setupRow}>
-            <span className={styles.turnLabel}>Era sequence ({eraSequenceDraft.length} selected, click to toggle/order)</span>
+            <span className={styles.setupLabel}>Era sequence ({eraSequenceDraft.length} selected, click to toggle/order)</span>
           </div>
           <div className={styles.eraPicker}>
             {ERA_BRIEFINGS.map((e) => {
@@ -159,29 +194,59 @@ export default function RoomHost() {
         </section>
       )}
 
+      {/* ── Two-column layout ── */}
       <div className={styles.columns}>
-        <section className={styles.left}>
-          <h2 className={styles.sectionTitle}>Turn &amp; Board</h2>
-          <div className={styles.turnRow}>
-            <span className={styles.turnLabel}>Whose turn</span>
-            <span className={styles.turnName} style={{ color: turnSyndicate?.color }}>
-              {turnSyndicate?.name ?? '—'}
-            </span>
+        {/* LEFT: Room Setup — Era, Roll, Teams */}
+        <section className={styles.card}>
+          <div className={styles.cardHeader}>
+            <h2 className={styles.sectionTitle}>👥 Room Setup</h2>
+            <span className={styles.teamCount}>{syndicates.length} / 8 Teams</span>
           </div>
-          <div className={styles.turnActions}>
+          <div className={styles.cardDivider} />
+
+          {/* Active Era & Turn Controls */}
+          <div className={styles.eraBlock}>
+            <div className={styles.eraInfo}>
+              <span className={styles.eraLabel}>Active Era</span>
+              <span className={styles.eraName}>
+                {game?.status === 'finished' ? 'Game complete' : era?.title ?? 'No era active'}
+              </span>
+            </div>
             <button
               type="button"
-              className={styles.rollButton}
-              disabled={busy || Boolean(pendingTurn) || game?.status === 'finished'}
-              onClick={() => act('ROLL', {})}
+              className={styles.forceAdvanceBtn}
+              disabled={busy}
+              onClick={() => act('ADVANCE_ERA', {})}
             >
-              ROLL
-            </button>
-            <button type="button" disabled={busy} onClick={() => act('SKIP_TURN', {})}>
-              Skip Turn
+              Force Advance Era
             </button>
           </div>
 
+          <div className={styles.turnActions}>
+            <span className={styles.turnLabel}>
+              Whose turn: <strong style={{ color: turnSyndicate?.color }}>{turnSyndicate?.name ?? '—'}</strong>
+            </span>
+            <div className={styles.turnBtns}>
+              <button
+                type="button"
+                className={styles.rollButton}
+                disabled={busy || Boolean(pendingTurn) || game?.status === 'finished'}
+                onClick={() => act('ROLL', {})}
+              >
+                ROLL
+              </button>
+              <button
+                type="button"
+                className={styles.skipTurnBtn}
+                disabled={busy}
+                onClick={() => act('SKIP_TURN', {})}
+              >
+                Skip Turn
+              </button>
+            </div>
+          </div>
+
+          {/* Pending turn panels */}
           {pendingTurn?.stage === 'awaiting_pick' && (
             <InvestmentPanel pendingTurn={pendingTurn} syndicate={turnSyndicate} busy={busy} onForceSubmit={(cardId, betAmount) => act('FORCE_SUBMIT', { cardId, betAmount })} />
           )}
@@ -191,10 +256,10 @@ export default function RoomHost() {
           {pendingTurn?.stage === 'corner' && (
             <CornerPanel pendingTurn={pendingTurn} syndicates={syndicates} busy={busy} onResolve={(targetId) => act('RESOLVE_CORNER', { targetId })} />
           )}
-        </section>
 
-        <section className={styles.right}>
-          <h2 className={styles.sectionTitle}>Syndicates ({syndicates.length} / 8)</h2>
+          <div className={styles.cardDivider} />
+
+          {/* Add Team */}
           <form
             className={styles.addRow}
             onSubmit={(e) => {
@@ -204,63 +269,104 @@ export default function RoomHost() {
               setNewSyndicateName('');
             }}
           >
-            <input value={newSyndicateName} onChange={(e) => setNewSyndicateName(e.target.value)} placeholder="Syndicate name" />
-            <button type="submit" disabled={busy || syndicates.length >= 8}>Add</button>
+            <span className={styles.addLabel}>Add New Team</span>
+            <div className={styles.addFields}>
+              <input value={newSyndicateName} onChange={(e) => setNewSyndicateName(e.target.value)} placeholder="Enter team name..." />
+              <button type="submit" className={styles.addBtn} disabled={busy || syndicates.length >= 8}>+ Add</button>
+            </div>
           </form>
 
+          {/* Team list */}
           {syndicates.map((s) => (
-            <SyndicateRow key={s.id} syndicate={s} busy={busy} act={act} />
+            <TeamRow key={s.id} syndicate={s} busy={busy} act={act} />
           ))}
+        </section>
+
+        {/* RIGHT: Manual Adjustments */}
+        <section className={styles.card}>
+          <h2 className={styles.sectionTitle}>⊕ Manual Adjustments</h2>
+          <div className={styles.cardDivider} />
+
+          <div className={styles.adjustField}>
+            <label className={styles.adjustLabel}>Target Team</label>
+            <select
+              className={styles.adjustSelect}
+              value={adjustTarget}
+              onChange={(e) => setAdjustTarget(e.target.value)}
+            >
+              <option value="">-- Select a Team --</option>
+              {syndicates.map((s) => (
+                <option key={s.id} value={s.id}>{s.name}</option>
+              ))}
+            </select>
+          </div>
+
+          <div className={styles.adjustField}>
+            <label className={styles.adjustLabel}>Action &amp; Amount</label>
+            <div className={styles.adjustRow}>
+              <select
+                className={styles.adjustSelect}
+                value={adjustType}
+                onChange={(e) => setAdjustType(e.target.value)}
+              >
+                {ADJUSTMENT_TYPES.map((t) => (
+                  <option key={t.id} value={t.id}>{t.label}</option>
+                ))}
+              </select>
+              <div className={styles.amountInput}>
+                <span className={styles.currencySign}>$</span>
+                <input
+                  type="number"
+                  min={0}
+                  value={adjustAmount}
+                  onChange={(e) => setAdjustAmount(Number(e.target.value))}
+                />
+              </div>
+            </div>
+          </div>
+
+          <button
+            type="button"
+            className={styles.executeBtn}
+            disabled={busy || !adjustTarget || !adjustAmount}
+            onClick={executeAdjustment}
+          >
+            Execute Adjustment
+          </button>
         </section>
       </div>
 
-      <section className={styles.transactions}>
-        <h2 className={styles.sectionTitle}>Transaction History</h2>
-        <table className={styles.txTable}>
-          <thead>
-            <tr><th>Time</th><th>Syndicate</th><th>Type</th><th>Note</th><th>Amount</th></tr>
-          </thead>
-          <tbody>
-            {transactions.map((t) => {
-              const syn = syndicates.find((s) => s.id === t.syndicateId);
-              return (
-                <tr key={t.id}>
-                  <td>{new Date(t.createdAt).toLocaleTimeString()}</td>
-                  <td>{syn?.name ?? '—'}</td>
-                  <td>{t.actionType}</td>
-                  <td>{t.note}</td>
-                  <td className={t.amount >= 0 ? styles.gain : styles.loss}>{formatSignedMoney(t.amount)}</td>
-                </tr>
-              );
-            })}
-          </tbody>
-        </table>
+      {/* ── Transaction History ── */}
+      <section className={styles.txSection}>
+        <div className={styles.txHeader}>
+          <h2 className={styles.sectionTitle}>🕐 Transaction History</h2>
+          <span className={styles.txSubtitle}>Latest Events</span>
+        </div>
+        <div className={styles.cardDivider} />
+        {transactions.length === 0 ? (
+          <p className={styles.txEmpty}>No transactions recorded yet.</p>
+        ) : (
+          <table className={styles.txTable}>
+            <thead>
+              <tr><th>Time</th><th>Team</th><th>Type</th><th>Note</th><th>Amount</th></tr>
+            </thead>
+            <tbody>
+              {transactions.map((t) => {
+                const syn = syndicates.find((s) => s.id === t.syndicateId);
+                return (
+                  <tr key={t.id}>
+                    <td>{new Date(t.createdAt).toLocaleTimeString()}</td>
+                    <td>{syn?.name ?? '—'}</td>
+                    <td>{t.actionType}</td>
+                    <td>{t.note}</td>
+                    <td className={t.amount >= 0 ? styles.gain : styles.loss}>{formatSignedMoney(t.amount)}</td>
+                  </tr>
+                );
+              })}
+            </tbody>
+          </table>
+        )}
       </section>
-
-      {isHost && (
-        <section className={styles.danger}>
-          <button type="button" onClick={() => setShowDanger((v) => !v)}>Danger Zone</button>
-          {showDanger && (
-            <div className={styles.dangerPanel}>
-              <input
-                value={resetConfirm}
-                onChange={(e) => setResetConfirm(e.target.value)}
-                placeholder='Type "RESET" to confirm'
-              />
-              <button
-                type="button"
-                disabled={resetConfirm !== 'RESET' || busy}
-                onClick={() => {
-                  act('RESET_ROOM', {});
-                  setResetConfirm('');
-                }}
-              >
-                Reset Room
-              </button>
-            </div>
-          )}
-        </section>
-      )}
     </div>
   );
 }
@@ -332,36 +438,21 @@ function CornerPanel({ pendingTurn, syndicates, busy, onResolve }) {
   );
 }
 
-function SyndicateRow({ syndicate: s, busy, act }) {
-  const [amount, setAmount] = useState(500);
-  const [note, setNote] = useState('');
+function TeamRow({ syndicate: s, busy, act }) {
   const activeFlags = Object.entries(s.flags).filter(([, v]) => v).map(([k]) => k);
 
   return (
-    <div className={styles.syndicateRow}>
+    <div className={styles.teamRow}>
       <span className={styles.chip} style={{ background: s.color }} />
-      <div className={styles.syndicateInfo}>
-        <span className={styles.syndicateName}>{s.name}</span>
-        <span className={styles.codeBadge}>
-          <span className={styles.codeLabel}>CODE</span>
-          <span className={styles.codeValue}>{s.joinCode}</span>
-        </span>
-        <span className={`${styles.syndicateCash} money`}>{formatMoney(s.cash)}</span>
-        <span className={styles.syndicatePosition}>pos {s.position}</span>
+      <div className={styles.teamInfo}>
+        <span className={styles.teamName}>{s.name}</span>
+        <span className={`${styles.teamCash} money`}>{formatMoney(s.cash)}</span>
+        <span className={styles.teamPosition}>pos {s.position}</span>
         {activeFlags.length > 0 && (
           <span className={styles.flags}>{activeFlags.join(', ')}</span>
         )}
       </div>
-      <div className={styles.adjustGroup}>
-        <input type="number" value={amount} onChange={(e) => setAmount(Number(e.target.value))} />
-        {QUICK_ADJUST.map((q) => (
-          <button key={q} type="button" onClick={() => setAmount(q)}>{q}</button>
-        ))}
-        <input value={note} onChange={(e) => setNote(e.target.value)} placeholder="reason (shows in history)" />
-        <button type="button" disabled={busy} onClick={() => act('ADJUST', { syndicateId: s.id, amount, note })}>Bonus</button>
-        <button type="button" disabled={busy} onClick={() => act('ADJUST', { syndicateId: s.id, amount: -amount, note })}>Penalty</button>
-      </div>
-      <button type="button" disabled={busy} onClick={() => act('REMOVE_SYNDICATE', { id: s.id })}>Remove</button>
+      <button type="button" className={styles.removeBtn} disabled={busy} onClick={() => act('REMOVE_SYNDICATE', { id: s.id })}>✕</button>
     </div>
   );
 }

@@ -22,8 +22,10 @@
 }
 
 .heading {
-  font-size: var(--text-xl);
-  color: var(--text);
+  font-size: var(--text-2xl);
+  font-family: var(--font-display);
+  color: var(--accent);
+  margin-bottom: var(--space-1);
 }
 
 .subheading {
