@@ -32,7 +32,7 @@
   --group-crypto: #C41230;
 
   --font-ui: 'Inter Tight', 'Geist', system-ui, -apple-system, sans-serif;
-  --font-display: 'Press Start 2P', 'Inter Tight', system-ui, sans-serif;
+  --font-display: 'Inter Tight', 'Geist', system-ui, -apple-system, sans-serif;
   --font-mono: 'IBM Plex Mono', ui-monospace, 'SF Mono', monospace;
 
   --text-xs: 12px;

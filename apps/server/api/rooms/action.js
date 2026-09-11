@@ -2,7 +2,7 @@ import { NEWS_CARDS } from '@estate/content';
 import { withAuth } from '../../src/auth.js';
 import { supabase } from '../../src/supabase.js';
 import {
-  loadRoomBySlug, callRoomAction, callSetPendingNewsCard, broadcastRoomUpdate, dealRoomDeck,
+  loadRoomBySlug, callRoomAction, broadcastRoomUpdate, dealRoomDeck,
 } from '../../src/rooms/dispatch.js';
 
 // Mirrors apply_room_action()'s own host/admin gate in schema.sql -- used
@@ -10,8 +10,8 @@ import {
 // the SQL function is what actually enforces authorization.
 const HOST_ONLY_ACTIONS = new Set([
   'REGISTER_SYNDICATE', 'REMOVE_SYNDICATE', 'ROLL', 'FORCE_SUBMIT', 'RESOLVE_NEWS',
-  'RESOLVE_CORNER', 'SKIP_TURN', 'ADJUST', 'START_TIMER', 'ADJUST_TIMER', 'CLEAR_TIMER',
-  'SET_PHASE', 'ADVANCE_ERA', 'SET_ERA_SEQUENCE', 'SET_STARTING_CASH', 'RESET_ROOM',
+  'RESOLVE_CORNER', 'SKIP_TURN', 'CANCEL_PENDING_TURN', 'ADJUST', 'START_TIMER', 'ADJUST_TIMER',
+  'CLEAR_TIMER', 'SET_PHASE', 'ADVANCE_ERA', 'SET_ERA_SEQUENCE', 'SET_STARTING_CASH', 'RESET_ROOM',
 ]);
 
 export default withAuth(async (req, res) => {
@@ -27,24 +27,18 @@ export default withAuth(async (req, res) => {
   }
 
   const room = await loadRoomBySlug(roomSlug);
-  await callRoomAction(room.id, req.userId, actionType, payload);
 
-  // ROLL landing on a market-news space leaves pending_turns.news_card null:
-  // the news-card pool is content (packages/content/news.js), picked here in
-  // Node, never duplicated into SQL. One small, still server-side, still
-  // version-guarded follow-up call fills it in before anything broadcasts.
-  if (actionType === 'ROLL') {
-    const { data: pending, error: pendingError } = await supabase
-      .from('pending_turns')
-      .select('stage, news_card')
-      .eq('room_id', room.id)
-      .maybeSingle();
-    if (pendingError) throw pendingError;
-    if (pending?.stage === 'news' && pending.news_card == null) {
-      const card = NEWS_CARDS[Math.floor(Math.random() * NEWS_CARDS.length)];
-      await callSetPendingNewsCard(room.id, card);
-    }
-  }
+  // The news-card pool is content (packages/content/news.js), picked here in
+  // Node rather than duplicated into SQL. Pre-picking it and passing it into
+  // the same apply_room_action() call (rather than a separate follow-up RPC
+  // after ROLL commits) keeps "land on a news space" + "assign its card"
+  // atomic -- a card is either picked at insert time or the row never gets
+  // created, so a room can no longer end up permanently stuck with
+  // pending_turns.news_card null.
+  const effectivePayload = actionType === 'ROLL'
+    ? { ...payload, newsCard: NEWS_CARDS[Math.floor(Math.random() * NEWS_CARDS.length)] }
+    : payload;
+  await callRoomAction(room.id, req.userId, actionType, effectivePayload);
 
   // ADVANCE_ERA (schema.sql) only moves era/status/syndicate bookkeeping for
   // this one room -- nothing in SQL knows about era content (room_decks'

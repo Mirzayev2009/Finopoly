@@ -135,7 +135,7 @@ export default function RoomBoard() {
   const { slug } = useParams();
   const { session, profile } = useAuth();
   const state = useRoomConnection(slug, session?.access_token);
-  const { busy, act } = useRoomAction(slug, session?.access_token);
+  const { busy, error, clearError, act } = useRoomAction(slug, session?.access_token);
   const isHost = ['host', 'admin'].includes(profile?.app_role);
 
   // Pending-turn decisions (60-90s to force-submit/resolve) take priority
@@ -163,6 +163,12 @@ export default function RoomBoard() {
         <a className={styles.hostLink} href={`/room/${slug}/host`} target="_blank" rel="noreferrer">
           Host Settings ↗
         </a>
+      )}
+      {error && (
+        <div className={styles.actionError}>
+          <span>{error}</span>
+          <button type="button" className={styles.actionErrorDismiss} onClick={clearError}>×</button>
+        </div>
       )}
       <div className={styles.board}>
         {BOARD.map((space) => (

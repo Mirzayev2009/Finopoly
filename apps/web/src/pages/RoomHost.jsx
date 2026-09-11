@@ -12,6 +12,15 @@ import styles from './RoomHost.module.css';
 
 const PHASES = ['lobby', 'briefing', 'research', 'playing', 'debrief'];
 
+// The three corner squares have no descriptive content anywhere else in the
+// app (unlike market-news cards, packages/content/news.js) -- mechanics
+// mirror schema.sql's RESOLVE_CORNER branch exactly.
+const CORNER_EVENT_INFO = {
+  ANGEL_INVESTMENT: 'A coin flip on half the team\'s current cash: heads doubles that stake into their pocket, tails takes it away.',
+  CORPORATE_BUYOUT: 'Pick a target team and flip a coin: win and you take $1,000 from them, lose and they take $1,000 from you.',
+  WHITE_COLLAR_PRISON: 'The team is frozen and immune, and skips their next turn automatically -- nothing for the host to resolve here.',
+};
+
 const ADJUSTMENT_TYPES = [
   { id: 'pass_start', label: 'Pass Start (+)', sign: 1 },
   { id: 'casino_win', label: 'Casino Win (+)', sign: 1 },
@@ -24,7 +33,7 @@ export default function RoomHost() {
   const { slug } = useParams();
   const { session, profile } = useAuth();
   const state = useHostConnection(slug, session?.access_token);
-  const { busy, act } = useRoomAction(slug, session?.access_token);
+  const { busy, error, clearError, act } = useRoomAction(slug, session?.access_token);
   const [newSyndicateName, setNewSyndicateName] = useState('');
   const [resetConfirm, setResetConfirm] = useState('');
   const [showDanger, setShowDanger] = useState(false);
@@ -92,9 +101,21 @@ export default function RoomHost() {
 
       {/* ── Header ── */}
       <div className={styles.header}>
-        <h1 className={styles.pageTitle}>⚙ Host Control Panel</h1>
-        <p className={styles.pageSubtitle}>Manage room {room.name} and manual overrides</p>
+        <div>
+          <h1 className={styles.pageTitle}>⚙ Host Control Panel</h1>
+          <p className={styles.pageSubtitle}>Manage room {room.name} and manual overrides</p>
+        </div>
+        <a className={styles.boardLink} href={`/room/${slug}/board`} target="_blank" rel="noreferrer">
+          View Board ↗
+        </a>
       </div>
+
+      {error && (
+        <div className={styles.errorBanner}>
+          <span>{error}</span>
+          <button type="button" className={styles.errorBannerDismiss} onClick={clearError}>×</button>
+        </div>
+      )}
 
       {/* ── Phase selector ── */}
       <div className={styles.phaseBar}>
@@ -243,6 +264,16 @@ export default function RoomHost() {
               >
                 Skip Turn
               </button>
+              {pendingTurn && (
+                <button
+                  type="button"
+                  className={styles.cancelTurnBtn}
+                  disabled={busy}
+                  onClick={() => act('CANCEL_PENDING_TURN', {})}
+                >
+                  Cancel stuck turn
+                </button>
+              )}
             </div>
           </div>
 
@@ -433,6 +464,7 @@ function CornerPanel({ pendingTurn, syndicates, busy, onResolve }) {
   return (
     <div className={styles.pendingPanel}>
       <h3 className={styles.pendingTitle}>{pendingTurn.cornerEvent?.replace(/_/g, ' ')}</h3>
+      <p className={styles.newsBody}>{CORNER_EVENT_INFO[pendingTurn.cornerEvent]}</p>
       <ResolvePanel kind="corner" pendingTurn={pendingTurn} syndicates={syndicates} busy={busy} onResolve={onResolve} />
     </div>
   );

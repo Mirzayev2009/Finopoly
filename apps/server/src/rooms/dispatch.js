@@ -133,7 +133,10 @@ export async function loadRoomSnapshot(roomId) {
     supabase.from('rooms').select('*').eq('id', roomId).single(),
     supabase.from('syndicates').select('*').eq('room_id', roomId).order('turn_order'),
     supabase.from('pending_turns').select('*').eq('room_id', roomId).maybeSingle(),
-    supabase.from('transactions').select('*').eq('room_id', roomId).order('created_at', { ascending: false }).limit(6),
+    // Host Control now renders this as a real "Transaction History" section
+    // (not just a small recent-activity strip), so it needs more than a
+    // token-sized window of rows.
+    supabase.from('transactions').select('*').eq('room_id', roomId).order('created_at', { ascending: false }).limit(100),
   ]);
 
   if (roomError) throw roomError;

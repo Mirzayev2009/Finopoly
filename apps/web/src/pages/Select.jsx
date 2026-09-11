@@ -43,7 +43,7 @@ export default function Select() {
       <TopBar />
       <div className={styles.center}>
         <div className={styles.panel}>
-          <h1 className={styles.heading}>Finoploy</h1>
+          <h1 className={styles.heading}>Finopoly</h1>
           <p className={styles.subheading}>Select a room and surface to open.</p>
 
           {isHost && (

@@ -640,8 +640,8 @@ begin
 
   if p_action_type in (
     'REGISTER_SYNDICATE', 'REMOVE_SYNDICATE', 'ROLL', 'FORCE_SUBMIT', 'RESOLVE_NEWS',
-    'RESOLVE_CORNER', 'SKIP_TURN', 'ADJUST', 'START_TIMER', 'ADJUST_TIMER', 'CLEAR_TIMER',
-    'SET_PHASE', 'ADVANCE_ERA', 'SET_ERA_SEQUENCE', 'SET_STARTING_CASH', 'RESET_ROOM'
+    'RESOLVE_CORNER', 'SKIP_TURN', 'CANCEL_PENDING_TURN', 'ADJUST', 'START_TIMER', 'ADJUST_TIMER',
+    'CLEAR_TIMER', 'SET_PHASE', 'ADVANCE_ERA', 'SET_ERA_SEQUENCE', 'SET_STARTING_CASH', 'RESET_ROOM'
   ) and v_actor_role not in ('host', 'admin') then
     raise exception 'FORBIDDEN';
   end if;
@@ -765,12 +765,16 @@ begin
             );
           end if;
         elsif v_to in (2, 7, 17, 22, 33, 36) then
+          -- news_card comes pre-picked from Node (packages/content/news.js
+          -- is client-content, not duplicated into SQL) and is written in
+          -- the same insert as the roll itself, so a news-space landing can
+          -- never commit with a null card waiting on a second call.
           insert into pending_turns (
             room_id, syndicate_id, stage, dice_1, dice_2, from_position, to_position, wrapped,
-            decision_deadline
+            news_card, decision_deadline
           ) values (
             p_room_id, v_current_syndicate.id, 'news', v_d1, v_d2, v_from, v_to, v_wrapped,
-            v_now + interval '60 seconds'
+            p_payload -> 'newsCard', v_now + interval '60 seconds'
           );
         else
           if not exists (select 1 from room_decks where room_id = p_room_id) then
@@ -1108,6 +1112,20 @@ begin
         insert into transactions (room_id, syndicate_id, action_type, amount, note)
           values (p_room_id, v_turn_syn.id, 'SKIPPED', 0, 'Turn skipped by host');
       end if;
+      perform advance_room_turn(p_room_id);
+    end;
+
+  -- Host escape hatch for a stuck pending turn (of any stage), so recovering
+  -- from a bad state never requires RESET_ROOM (which wipes the whole room).
+  -- No money side-effects; advance_room_turn() deletes the pending_turns row.
+  when 'CANCEL_PENDING_TURN' then
+    declare
+      v_pending pending_turns%rowtype;
+    begin
+      select * into v_pending from pending_turns where room_id = p_room_id for update;
+      if not found then raise exception 'NO_PENDING_TURN'; end if;
+      insert into transactions (room_id, syndicate_id, action_type, amount, note)
+        values (p_room_id, v_pending.syndicate_id, 'CANCELLED', 0, 'Pending turn cancelled by host');
       perform advance_room_turn(p_room_id);
     end;
 

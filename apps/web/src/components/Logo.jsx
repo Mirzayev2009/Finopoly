@@ -5,5 +5,5 @@ function cx(...parts) {
 }
 
 export default function Logo({ size = 'md', className }) {
-  return <span className={cx(styles.logo, styles[size], className)}>Finoploy</span>;
+  return <span className={cx(styles.logo, styles[size], className)}>Finopoly</span>;
 }

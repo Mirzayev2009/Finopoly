@@ -2,7 +2,7 @@
 // per-device display preference — the server (schema.sql) has no column for
 // it, and this feature is additive UI flavor, not a scored game mechanic, so
 // it's kept client-side rather than requiring a server change.
-export const ROLE_STORAGE_KEY = 'finoploy:myRole';
+export const ROLE_STORAGE_KEY = 'finopoly:myRole';
 
 export const ROLE_LABELS = {
   analyst: 'Market Analyst',
