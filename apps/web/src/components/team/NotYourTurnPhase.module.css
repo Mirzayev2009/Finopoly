@@ -22,9 +22,8 @@
 
 .statLabel {
   font-size: var(--text-xs);
+  font-weight: 600;
   color: var(--text-3);
-  text-transform: uppercase;
-  letter-spacing: 0.04em;
 }
 
 .statValue {
@@ -58,9 +57,8 @@
 
 .turnLabel {
   font-size: var(--text-xs);
+  font-weight: 600;
   color: var(--text-3);
-  text-transform: uppercase;
-  letter-spacing: 0.04em;
 }
 
 .turnName {
@@ -75,9 +73,8 @@
 
 .sectionTitle {
   font-size: var(--text-sm);
+  font-weight: 600;
   color: var(--text-3);
-  text-transform: uppercase;
-  letter-spacing: 0.06em;
   margin: 0;
 }
 

@@ -170,8 +170,7 @@
 
 .eraTitle {
   font-size: var(--text-sm);
-  letter-spacing: 0.08em;
-  text-transform: uppercase;
+  font-weight: 600;
 }
 
 .eraYears {
@@ -272,9 +271,8 @@
 
 .cardType {
   font-size: var(--text-xs);
+  font-weight: 600;
   color: var(--text-3);
-  text-transform: uppercase;
-  letter-spacing: 0.06em;
 }
 
 .cardName {

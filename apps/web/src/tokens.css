@@ -2,8 +2,9 @@
  * Design tokens. Nothing literal (colors, spacing, motion durations) outside
  * this file — every surface consumes these custom properties.
  *
- * THEME: Warm-cream / retro / editorial — inspired by Ozod's "Market Masters"
- * Host Control Panel. Brand palette is cream/red/black; green is kept for
+ * THEME: Warm neutral / modern — inspired by Ozod's "Market Masters"
+ * Host Control Panel. Brand palette is cream/red/near-black, expressed with
+ * soft shadow-based elevation rather than hard borders; green is kept for
  * --gain only since the palette can't also carry "up vs. down" financial
  * meaning. The only saturated color outside this file is syndicate identity,
  * asset group bars, and gain/loss.
@@ -12,14 +13,17 @@
   --bg: #FBF8EE;
   --surface: #FFFFFF;
   --surface-2: #F5F0E8;
-  --border: #2A2A2A;
-  --border-hi: #1A1A1A;
+  --border: #E6E1D6;
+  --border-hi: #D9D3C4;
   --text: #1A1A1A;
   --text-2: #555555;
   --text-3: #888888;
   --accent: #C41230;
   --gain: #0A8754;
   --loss: #C41230;
+  --success: #1E7B34;
+  --danger-bg: #FDF1F1;
+  --danger-bg-strong: #FCE4E4;
 
   /* 8 muted group hues — adjusted for legibility on the cream background. */
   --group-financials: #6B6B6B;
@@ -102,8 +106,10 @@
   --color-loss: var(--loss);
   --color-danger: var(--loss);
   --color-danger-soft: rgba(196, 18, 48, 0.08);
+  --color-danger-bg: var(--danger-bg);
+  --color-danger-bg-strong: var(--danger-bg-strong);
+  --color-success: var(--success);
   --font-body: var(--font-ui);
-  --font-pixel: var(--font-display);
   --font-mono-alias: var(--font-mono);
   --motion-fast: 120ms ease-out;
   --radius-xs: 4px;
