@@ -713,7 +713,13 @@ begin
       for update;
 
     if v_current_syndicate.frozen then
-      update syndicates set frozen = false where id = v_current_syndicate.id;
+      -- immune is granted together with frozen when a team lands on White
+      -- Collar Prison (below) to cover exactly that one skipped turn; it must
+      -- be cleared here too, or a team stays immune to WEALTH_TAX/EMBEZZLE/
+      -- ROBIN_HOOD indefinitely, until they next happen to land on a plain
+      -- asset space and complete an investment (the only other place that
+      -- resets it, in resolve_investment_core above).
+      update syndicates set frozen = false, immune = false where id = v_current_syndicate.id;
       insert into transactions (room_id, syndicate_id, action_type, amount, note)
         values (p_room_id, v_current_syndicate.id, 'SKIPPED', 0, 'Turn skipped (frozen)');
       perform advance_room_turn(p_room_id);
@@ -764,6 +770,14 @@ begin
               v_corner_type, v_now + interval '60 seconds'
             );
           end if;
+        elsif v_to = 0 then
+          -- Landing exactly on START (only reachable via wraparound, e.g.
+          -- from position 34 rolling a 6) is a plain corner space per
+          -- board.js, not an asset space -- the pass-GO bonus above already
+          -- covers it, so nothing else happens; just end the turn. Without
+          -- this branch v_to=0 fell through to the asset-space `else` below
+          -- and incorrectly dealt investment cards for landing on START.
+          perform advance_room_turn(p_room_id);
         elsif v_to in (2, 7, 17, 22, 33, 36) then
           -- news_card comes pre-picked from Node (packages/content/news.js
           -- is client-content, not duplicated into SQL) and is written in
@@ -1109,6 +1123,13 @@ begin
       select * into v_turn_syn from syndicates
         where room_id = p_room_id order by turn_order limit 1 offset v_room.turn_index;
       if found then
+        -- Mirrors ROLL's frozen branch above: a host-initiated skip fulfills
+        -- the same "sit out one turn" obligation a frozen/immune team owes
+        -- after White Collar Prison, so clear both here too -- otherwise a
+        -- host who uses Skip Turn instead of ROLL on a frozen team leaves
+        -- them frozen and immune to WEALTH_TAX/EMBEZZLE/ROBIN_HOOD
+        -- indefinitely. Harmless no-op when the team wasn't frozen anyway.
+        update syndicates set frozen = false, immune = false where id = v_turn_syn.id;
         insert into transactions (room_id, syndicate_id, action_type, amount, note)
           values (p_room_id, v_turn_syn.id, 'SKIPPED', 0, 'Turn skipped by host');
       end if;

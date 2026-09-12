@@ -35,6 +35,13 @@ export default function Team() {
   // Detect a freshly-resolved INVESTMENT for my own syndicate by watching
   // for a new transaction id — never on the very first snapshot after
   // mount, so reopening the app mid-game doesn't replay an old resolution.
+  //
+  // Scans every transaction newer than the last one we saw (not just the
+  // single newest one): a device that was backgrounded/offline through more
+  // than one resolved turn re-syncs via the visibility/online refetch in
+  // useRoomConnection, which can land several new rows at once, and this
+  // team's own resolution could be buried under someone else's later one.
+  // Checking only transactions[0] would silently skip straight past it.
   useEffect(() => {
     if (!mySyndicate || state.transactions.length === 0) return;
     const latest = state.transactions[0];
@@ -42,12 +49,16 @@ export default function Team() {
       lastSeenTxId.current = latest.id;
       return;
     }
-    if (latest.id !== lastSeenTxId.current) {
-      lastSeenTxId.current = latest.id;
-      if (latest.syndicateId === mySyndicate.id && latest.actionType === 'INVESTMENT') {
-        setResolvedTx(latest);
-      }
-    }
+    if (latest.id === lastSeenTxId.current) return;
+
+    const seenIndex = state.transactions.findIndex((t) => t.id === lastSeenTxId.current);
+    const freshSinceLastSeen = seenIndex === -1 ? state.transactions : state.transactions.slice(0, seenIndex);
+    lastSeenTxId.current = latest.id;
+
+    const myResolution = freshSinceLastSeen.find(
+      (t) => t.syndicateId === mySyndicate.id && t.actionType === 'INVESTMENT'
+    );
+    if (myResolution) setResolvedTx(myResolution);
   }, [state.transactions, mySyndicate]);
 
   if (binding === null) return <PageLoader label="Loading…" />;

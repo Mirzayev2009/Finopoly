@@ -1,3 +1,4 @@
+import { useEffect, useState } from 'react';
 import { useParams } from 'react-router-dom';
 import { BOARD, ERA_BRIEFINGS } from '@estate/content/client';
 import { useAuth } from '../context/AuthContext.jsx';
@@ -54,7 +55,72 @@ function CenterFinished() {
   );
 }
 
-function CenterIdle({ era, turnSyndicate, pendingTurn, isHost, busy, onRoll, onSkip }) {
+// Classic 3x3 pip layout per face, numbered 1-9 left-to-right/top-to-bottom.
+const PIP_LAYOUT = {
+  1: [5],
+  2: [1, 9],
+  3: [1, 5, 9],
+  4: [1, 3, 7, 9],
+  5: [1, 3, 5, 7, 9],
+  6: [1, 3, 4, 6, 7, 9],
+};
+
+function Die({ value, rolling }) {
+  const lit = PIP_LAYOUT[value] ?? [];
+  return (
+    <div className={`${styles.die} ${rolling ? styles.dieRolling : styles.dieSettled}`}>
+      <div className={styles.pipGrid}>
+        {Array.from({ length: 9 }, (_, i) => (
+          <span key={i} className={lit.includes(i + 1) ? styles.pip : styles.pipEmpty} />
+        ))}
+      </div>
+    </div>
+  );
+}
+
+// Shared by every stage below that has a resolved roll to show — CenterIdle
+// never renders one (it's only mounted while pendingTurn is null, i.e.
+// before a roll), so this is the only place dice are ever visible.
+//
+// The server resolves a roll atomically (dice + landing square land in the
+// same pending_turns row, no separate "in progress" tick to watch), so
+// there's nothing to poll mid-roll. Instead, the instant a new roll's result
+// arrives, briefly cycle random faces before settling on the real one — this
+// plays the same way on every screen watching the board, not just whichever
+// device tapped Roll.
+function DiceReadout({ dice, rollId }) {
+  const [shownDice, setShownDice] = useState(dice);
+  const [rolling, setRolling] = useState(false);
+
+  useEffect(() => {
+    if (!dice) return undefined;
+    setRolling(true);
+    const tumble = setInterval(() => {
+      setShownDice([1 + Math.floor(Math.random() * 6), 1 + Math.floor(Math.random() * 6)]);
+    }, 80);
+    const settle = setTimeout(() => {
+      clearInterval(tumble);
+      setShownDice(dice);
+      setRolling(false);
+    }, 650);
+    return () => {
+      clearInterval(tumble);
+      clearTimeout(settle);
+    };
+    // Re-runs only when a genuinely new roll lands, not on every re-render.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [rollId]);
+
+  if (!dice) return null;
+  return (
+    <div className={styles.dice}>
+      <Die value={shownDice?.[0] ?? dice[0]} rolling={rolling} />
+      <Die value={shownDice?.[1] ?? dice[1]} rolling={rolling} />
+    </div>
+  );
+}
+
+function CenterIdle({ era, turnSyndicate, isHost, busy, onRoll, onSkip }) {
   return (
     <div className={styles.centerIdle}>
       {era && (
@@ -67,12 +133,6 @@ function CenterIdle({ era, turnSyndicate, pendingTurn, isHost, busy, onRoll, onS
       <span className={styles.turnSyndicate} style={{ color: turnSyndicate?.color }}>
         {turnSyndicate?.name ?? '—'}
       </span>
-      {pendingTurn?.dice && (
-        <div className={styles.dice}>
-          <span className={`${styles.die} dice`}>{pendingTurn.dice[0]}</span>
-          <span className={`${styles.die} dice`}>{pendingTurn.dice[1]}</span>
-        </div>
-      )}
       {isHost && (
         <div className={styles.hostControls}>
           <button type="button" className={styles.rollButton} disabled={busy} onClick={onRoll}>
@@ -90,14 +150,16 @@ function CenterIdle({ era, turnSyndicate, pendingTurn, isHost, busy, onRoll, onS
 function CenterCards({ pendingTurn }) {
   return (
     <div className={styles.centerCards}>
-      {pendingTurn.drawnCards.map((card) => (
-        <div key={card.id} className={styles.card}>
-          <span className={styles.cardType}>{card.assetType}</span>
-          <span className={styles.cardName}>{card.name}</span>
-          <span className={styles.cardReason}>{card.reason}</span>
-          <div className={styles.cardFlap}>?</div>
-        </div>
-      ))}
+      <div className={styles.centerCardsRow}>
+        {pendingTurn.drawnCards.map((card) => (
+          <div key={card.id} className={styles.card}>
+            <span className={styles.cardType}>{card.assetType}</span>
+            <span className={styles.cardName}>{card.name}</span>
+            <span className={styles.cardReason}>{card.reason}</span>
+            <div className={styles.cardFlap}>?</div>
+          </div>
+        ))}
+      </div>
     </div>
   );
 }
@@ -175,12 +237,12 @@ export default function RoomBoard() {
           <BoardSpace key={space.id} space={space} tokens={tokensByPosition.get(space.id) ?? []} />
         ))}
         <div className={styles.center}>
+          {pendingTurn && <DiceReadout dice={pendingTurn.dice} rollId={pendingTurn.id} />}
           {game?.status === 'finished' && <CenterFinished />}
           {game?.status !== 'finished' && !pendingTurn && (
             <CenterIdle
               era={era}
               turnSyndicate={turnSyndicate}
-              pendingTurn={pendingTurn}
               isHost={isHost}
               busy={busy}
               onRoll={() => act('ROLL', {})}

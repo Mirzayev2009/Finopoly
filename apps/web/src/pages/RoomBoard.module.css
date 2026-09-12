@@ -149,8 +149,10 @@
   grid-column: 2 / 11;
   background: var(--bg);
   display: flex;
+  flex-direction: column;
   align-items: center;
   justify-content: center;
+  gap: var(--space-2);
 }
 
 .centerIdle {
@@ -240,20 +242,68 @@
 .die {
   width: 56px;
   height: 56px;
+  padding: 8px;
   border-radius: var(--radius);
-  background: var(--surface-2);
+  background: var(--surface);
   border: 1px solid var(--border-hi);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  font-size: var(--text-xl);
-  transition: transform var(--motion-dice-tumble);
+  box-shadow: var(--shadow-sm);
+}
+
+.dieRolling {
+  animation: dieTumble 300ms ease-in-out infinite;
+}
+
+.dieSettled {
+  animation: dieSettle var(--motion-dice-tumble);
+}
+
+@keyframes dieTumble {
+  0%, 100% { transform: rotate(0deg) scale(1); }
+  50% { transform: rotate(-10deg) scale(0.92); }
+}
+
+@keyframes dieSettle {
+  0% { transform: scale(1.3) rotate(10deg); }
+  60% { transform: scale(0.94) rotate(-4deg); }
+  100% { transform: scale(1) rotate(0deg); }
+}
+
+.pipGrid {
+  width: 100%;
+  height: 100%;
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  grid-template-rows: repeat(3, 1fr);
+}
+
+.pip,
+.pipEmpty {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  align-self: center;
+  justify-self: center;
+}
+
+.pip {
+  background: var(--text);
+}
+
+.pipEmpty {
+  background: transparent;
 }
 
 .centerCards {
   display: flex;
+  flex-direction: column;
+  align-items: center;
   gap: var(--space-2);
   padding: var(--space-3);
+}
+
+.centerCardsRow {
+  display: flex;
+  gap: var(--space-2);
 }
 
 .card {
