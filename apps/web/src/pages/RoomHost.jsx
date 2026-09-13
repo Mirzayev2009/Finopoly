@@ -246,12 +246,13 @@ export default function RoomHost() {
           <div className={styles.turnActions}>
             <span className={styles.turnLabel}>
               Whose turn: <strong style={{ color: turnSyndicate?.color }}>{turnSyndicate?.name ?? '—'}</strong>
+              {game?.status !== 'active' && ' (start an era below to roll)'}
             </span>
             <div className={styles.turnBtns}>
               <button
                 type="button"
                 className={styles.rollButton}
-                disabled={busy || Boolean(pendingTurn) || game?.status === 'finished'}
+                disabled={busy || Boolean(pendingTurn) || game?.status !== 'active'}
                 onClick={() => act('ROLL', {})}
               >
                 ROLL
@@ -259,7 +260,7 @@ export default function RoomHost() {
               <button
                 type="button"
                 className={styles.skipTurnBtn}
-                disabled={busy}
+                disabled={busy || game?.status !== 'active'}
                 onClick={() => act('SKIP_TURN', {})}
               >
                 Skip Turn
@@ -406,6 +407,14 @@ function InvestmentPanel({ pendingTurn, syndicate, busy, onForceSubmit }) {
   const [selected, setSelected] = useState(null);
   const [bet, setBet] = useState(0);
   const cash = syndicate?.cash ?? 0;
+
+  if (!pendingTurn.drawnCards) {
+    return (
+      <div className={styles.pendingPanel}>
+        <h3 className={styles.pendingTitle}>Loading options…</h3>
+      </div>
+    );
+  }
 
   return (
     <div className={styles.pendingPanel}>

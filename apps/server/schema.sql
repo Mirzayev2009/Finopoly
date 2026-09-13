@@ -335,23 +335,15 @@ create table if not exists syndicate_members (
 create index if not exists idx_syndicate_members_syndicate on syndicate_members(syndicate_id);
 create index if not exists idx_syndicate_members_user on syndicate_members(user_id);
 
--- One live shuffled deck per room, replaced whole on era advance (see
--- set_room_deck() below — populated from apps/server's Node layer, which
--- reads ERAS and shuffles; nothing here knows about era content itself).
-create table if not exists room_decks (
-  room_id uuid primary key references rooms(id) on delete cascade,
-  era_id text not null,
-  cards jsonb not null default '[]'::jsonb,
-  version integer not null default 1,
-  updated_at timestamptz not null default now()
-);
-
 -- The ONE open turn per room — its existence *is* the "a turn is in
 -- progress" state. news_card starts null even on a 'news' stage row: the
 -- news-card pool lives in packages/content/news.js, not SQL, so ROLL() below
 -- only marks the space landed on; apps/server's Node layer picks the actual
--- card and writes it in with set_pending_news_card() as an immediate
--- follow-up call, still entirely server-side and still atomic per-call.
+-- card and writes it in as an immediate follow-up call, still entirely
+-- server-side and still atomic per-call. Likewise drawn_cards starts null
+-- on an 'awaiting_pick' row landing on an asset space — its 3 fixed options
+-- (packages/content/space-options.js) are looked up by space id and filled
+-- in the same way, via set_pending_investment_cards().
 create table if not exists pending_turns (
   id uuid primary key default gen_random_uuid(),
   room_id uuid not null unique references rooms(id) on delete cascade,
@@ -384,7 +376,6 @@ alter table game_state enable row level security;
 alter table rooms enable row level security;
 alter table syndicates enable row level security;
 alter table syndicate_members enable row level security;
-alter table room_decks enable row level security;
 alter table pending_turns enable row level security;
 alter table transactions enable row level security;
 -- Deliberately no SELECT/INSERT/UPDATE policies for anon/authenticated on any
@@ -398,72 +389,6 @@ alter table transactions enable row level security;
 -- ----------------------------------------------------------------------
 -- Helper functions used by apply_room_action() below.
 -- ----------------------------------------------------------------------
-
--- First index (0-based) in a jsonb array of cards whose ->>'type' matches,
--- or -1 if none. Used by the 3-card balancer / insider-info / sabotage bias.
-create or replace function find_card_index(p_cards jsonb, p_type text)
-returns int language sql immutable as $$
-  select coalesce(
-    (select min(ord) - 1
-     from jsonb_array_elements(p_cards) with ordinality as t(elem, ord)
-     where elem ->> 'type' = p_type),
-    -1
-  );
-$$;
-
--- Deals p_count cards off the front of a room's live deck, applying the
--- reference server's exact balancer: insider_info always biases toward
--- Good (falling back to Bad if none left); sabotaged always biases toward
--- Bad (falling back to Good); otherwise, once 2 cards are already drawn, a
--- 2-Good draw forces the next pick Bad and vice versa, so a team is never
--- shown three obvious winners or losers. Returns
--- {"dealt": [...], "remaining": [...]}.
-create or replace function deal_cards(p_deck jsonb, p_count int, p_insider boolean, p_sabotaged boolean)
-returns jsonb language plpgsql as $$
-declare
-  v_remaining jsonb := coalesce(p_deck, '[]'::jsonb);
-  v_dealt jsonb := '[]'::jsonb;
-  v_good_count int := 0;
-  v_bad_count int := 0;
-  v_idx int;
-  v_card jsonb;
-  i int;
-begin
-  for i in 1..p_count loop
-    exit when jsonb_array_length(v_remaining) = 0; -- deck exhausted (defensive; decks hold 72)
-
-    v_idx := 0;
-    if p_insider then
-      v_idx := find_card_index(v_remaining, 'Good');
-      if v_idx = -1 then v_idx := find_card_index(v_remaining, 'Bad'); end if;
-    elsif p_sabotaged then
-      v_idx := find_card_index(v_remaining, 'Bad');
-      if v_idx = -1 then v_idx := find_card_index(v_remaining, 'Good'); end if;
-    elsif jsonb_array_length(v_dealt) >= 2 then
-      if v_good_count >= 2 then
-        v_idx := find_card_index(v_remaining, 'Bad');
-      elsif v_bad_count >= 2 then
-        v_idx := find_card_index(v_remaining, 'Good');
-      end if;
-    end if;
-    if v_idx = -1 or v_idx is null then v_idx := 0; end if;
-
-    v_card := v_remaining -> v_idx;
-    v_dealt := v_dealt || jsonb_build_array(v_card);
-    select coalesce(jsonb_agg(elem order by ord), '[]'::jsonb) into v_remaining
-      from jsonb_array_elements(v_remaining) with ordinality as t(elem, ord)
-      where ord - 1 <> v_idx;
-
-    if v_card ->> 'type' = 'Good' then
-      v_good_count := v_good_count + 1;
-    else
-      v_bad_count := v_bad_count + 1;
-    end if;
-  end loop;
-
-  return jsonb_build_object('dealt', v_dealt, 'remaining', v_remaining);
-end;
-$$;
 
 -- Shared by every turn-ending action (SUBMIT_INVESTMENT, FORCE_SUBMIT,
 -- RESOLVE_NEWS, RESOLVE_CORNER, SKIP_TURN, the automatic frozen-skip inside
@@ -493,8 +418,7 @@ $$;
 -- Shared by SUBMIT_INVESTMENT and FORCE_SUBMIT: the reference server's exact
 -- profit/loss formula (big_short flips sign, blind_faith doubles a positive
 -- result, next_multiplier applies after, hedge_fund zeroes a loss), cash
--- floored at 0, unselected cards returned to the deck and reshuffled, every
--- modifier flag cleared, one turn advanced.
+-- floored at 0, every modifier flag cleared, one turn advanced.
 create or replace function resolve_investment_core(
   p_room_id uuid, p_syndicate_id uuid, p_drawn_cards jsonb,
   p_card_id text, p_bet_amount int, p_note_prefix text
@@ -502,10 +426,8 @@ create or replace function resolve_investment_core(
 declare
   v_syn syndicates%rowtype;
   v_chosen jsonb;
-  v_unselected jsonb;
   v_pct numeric;
   v_profit_loss int;
-  v_deck jsonb;
 begin
   select * into v_syn from syndicates where id = p_syndicate_id for update;
 
@@ -517,10 +439,6 @@ begin
   if p_bet_amount < 0 or p_bet_amount > v_syn.cash then
     raise exception 'INVALID_BET';
   end if;
-
-  select coalesce(jsonb_agg(elem), '[]'::jsonb) into v_unselected
-    from jsonb_array_elements(p_drawn_cards) elem
-    where elem ->> 'id' <> p_card_id;
 
   v_pct := (v_chosen ->> 'percentage')::numeric;
   if v_syn.big_short then v_pct := -v_pct; end if;
@@ -537,15 +455,6 @@ begin
     monopoly_power = false, sabotaged = false, frozen = false, immune = false
   where id = p_syndicate_id;
 
-  select cards into v_deck from room_decks where room_id = p_room_id for update;
-  update room_decks set
-    cards = (
-      select coalesce(jsonb_agg(elem order by random()), '[]'::jsonb)
-      from jsonb_array_elements(coalesce(v_deck, '[]'::jsonb) || v_unselected) elem
-    ),
-    version = version + 1
-  where room_id = p_room_id;
-
   insert into transactions (room_id, syndicate_id, action_type, amount, note)
   values (
     p_room_id, p_syndicate_id, 'INVESTMENT', v_profit_loss,
@@ -560,12 +469,16 @@ begin
 end;
 $$;
 
--- Fills in the news card for a pending 'news' turn. Called immediately after
--- ROLL() lands on a market-news space, by apps/server's Node layer (which
--- picks the random card from packages/content/news.js) -- this is the one
--- deliberate two-call sequence in the whole design, so game content never
--- has to be duplicated into SQL. Still fully server-side and version-guarded.
-create or replace function set_pending_news_card(p_room_id uuid, p_expected_version int, p_news_card jsonb)
+-- Fills in the 3 investment options for a pending 'awaiting_pick' turn.
+-- Called immediately after ROLL() lands on an ordinary asset space, by
+-- apps/server's Node layer (which looks up that space's fixed options from
+-- packages/content/space-options.js) -- the one deliberate two-call
+-- sequence in the whole design, so game content never has to be duplicated
+-- into SQL: Node can't know which space was landed on until ROLL() commits,
+-- so this can't be inlined into the same insert the way news_card is.
+-- The `drawn_cards is null` guard makes a duplicate/late follow-up call a
+-- safe no-op instead of overwriting an already-filled slot.
+create or replace function set_pending_investment_cards(p_room_id uuid, p_expected_version int, p_investment_cards jsonb)
 returns jsonb language plpgsql security definer set search_path = public as $$
 declare
   v_room rooms%rowtype;
@@ -577,31 +490,13 @@ begin
     raise exception using errcode = '40001', message = 'VERSION_CONFLICT';
   end if;
 
-  update pending_turns set news_card = p_news_card where room_id = p_room_id and stage = 'news';
+  update pending_turns set drawn_cards = p_investment_cards
+    where room_id = p_room_id and stage = 'awaiting_pick' and drawn_cards is null;
   get diagnostics v_updated = row_count;
-  if v_updated = 0 then raise exception 'NO_PENDING_NEWS_SLOT'; end if;
+  if v_updated = 0 then raise exception 'NO_PENDING_INVESTMENT_SLOT'; end if;
 
   update rooms set version = version + 1 where id = p_room_id;
   return jsonb_build_object('room_id', p_room_id);
-end;
-$$;
-
--- (Re)populates a room's live deck. Called only from apps/server's
--- advance-era orchestration, immediately after advance_era() below succeeds
--- -- not a user-facing action, so it isn't version-guarded against `rooms`;
--- the brief window where a room's era_status is already 'active' but its
--- deck isn't populated yet is an accepted tradeoff of the same shape as the
--- broadcast-after-commit one documented in the implementation plan.
-create or replace function set_room_deck(p_room_id uuid, p_era_id text, p_cards jsonb)
-returns void language plpgsql security definer set search_path = public as $$
-begin
-  insert into room_decks (room_id, era_id, cards)
-  values (p_room_id, p_era_id, p_cards)
-  on conflict (room_id) do update set
-    era_id = excluded.era_id,
-    cards = excluded.cards,
-    version = room_decks.version + 1,
-    updated_at = now();
 end;
 $$;
 
@@ -701,6 +596,12 @@ begin
     end;
 
   when 'ROLL' then
+    -- Without this, rolling before the first ADVANCE_ERA (room still
+    -- 'lobby') would let a team move and land on spaces before the game has
+    -- actually started. Fail the same way every time, up front.
+    if v_room.status <> 'active' then
+      raise exception 'GAME_NOT_ACTIVE';
+    end if;
     if exists (select 1 from pending_turns where room_id = p_room_id) then
       raise exception 'TURN_ALREADY_PENDING';
     end if;
@@ -726,16 +627,14 @@ begin
     else
       declare
         v_d1 int := 1 + floor(random() * 6)::int;
-        v_d2 int := 1 + floor(random() * 6)::int;
         v_sum int := 0;
         v_from int := v_current_syndicate.position;
         v_raw int := 0;
         v_to int := 0;
         v_wrapped boolean := false;
         v_corner_type text;
-        v_deal jsonb;
       begin
-        v_sum := v_d1 + v_d2;
+        v_sum := v_d1;
         v_raw := v_from + v_sum;
         v_to := v_raw % 40;
         v_wrapped := v_raw >= 40;
@@ -766,8 +665,8 @@ begin
               room_id, syndicate_id, stage, dice_1, dice_2, from_position, to_position, wrapped,
               corner_event, decision_deadline
             ) values (
-              p_room_id, v_current_syndicate.id, 'corner', v_d1, v_d2, v_from, v_to, v_wrapped,
-              v_corner_type, v_now + interval '60 seconds'
+              p_room_id, v_current_syndicate.id, 'corner', v_d1, null, v_from, v_to, v_wrapped,
+              v_corner_type, v_now + interval '90 seconds'
             );
           end if;
         elsif v_to = 0 then
@@ -787,27 +686,23 @@ begin
             room_id, syndicate_id, stage, dice_1, dice_2, from_position, to_position, wrapped,
             news_card, decision_deadline
           ) values (
-            p_room_id, v_current_syndicate.id, 'news', v_d1, v_d2, v_from, v_to, v_wrapped,
-            p_payload -> 'newsCard', v_now + interval '60 seconds'
+            p_room_id, v_current_syndicate.id, 'news', v_d1, null, v_from, v_to, v_wrapped,
+            p_payload -> 'newsCard', v_now + interval '90 seconds'
           );
         else
-          if not exists (select 1 from room_decks where room_id = p_room_id) then
-            raise exception 'NO_ACTIVE_DECK';
-          end if;
-          v_deal := deal_cards(
-            (select cards from room_decks where room_id = p_room_id for update),
-            case when v_current_syndicate.monopoly_power then 5 else 3 end,
-            v_current_syndicate.insider_info,
-            v_current_syndicate.sabotaged
-          );
-          update room_decks set cards = v_deal -> 'remaining', version = version + 1
-            where room_id = p_room_id;
+          -- Landed on an ordinary asset space. Its 3 investment options are
+          -- fixed per-space content (packages/content/space-options.js),
+          -- not drawn from a shared deck -- Node doesn't know which space
+          -- this landing resolved to until this call commits, so drawn_cards
+          -- starts null and is filled in immediately after by Node's
+          -- fillPendingInvestmentCards() calling set_pending_investment_cards()
+          -- below, the one deliberate two-call sequence in this design.
           insert into pending_turns (
             room_id, syndicate_id, stage, dice_1, dice_2, from_position, to_position, wrapped,
-            drawn_cards, decision_deadline
+            decision_deadline
           ) values (
-            p_room_id, v_current_syndicate.id, 'awaiting_pick', v_d1, v_d2, v_from, v_to, v_wrapped,
-            v_deal -> 'dealt', v_now + interval '90 seconds'
+            p_room_id, v_current_syndicate.id, 'awaiting_pick', v_d1, null, v_from, v_to, v_wrapped,
+            v_now + interval '180 seconds'
           );
         end if;
       end;
@@ -821,6 +716,13 @@ begin
       select * into v_pending from pending_turns where room_id = p_room_id for update;
       if not found or v_pending.stage <> 'awaiting_pick' then
         raise exception 'NO_PENDING_PICK';
+      end if;
+      if v_pending.drawn_cards is null then
+        -- Node's fillPendingInvestmentCards() hasn't landed yet (or failed)
+        -- -- without this, jsonb_array_elements(null) below silently yields
+        -- no rows and this fails with a misleading INVALID_CARD instead of
+        -- a clear "not ready yet".
+        raise exception 'CARDS_NOT_READY';
       end if;
       select * into v_turn_syn from syndicates where id = v_pending.syndicate_id;
       if not exists (
@@ -855,6 +757,9 @@ begin
       select * into v_pending from pending_turns where room_id = p_room_id for update;
       if not found or v_pending.stage <> 'awaiting_pick' then
         raise exception 'NO_PENDING_PICK';
+      end if;
+      if v_pending.drawn_cards is null then
+        raise exception 'CARDS_NOT_READY';
       end if;
       if v_pending.decision_deadline is not null and v_now < v_pending.decision_deadline then
         raise exception 'DEADLINE_NOT_PASSED';
@@ -1117,6 +1022,12 @@ begin
     end;
 
   when 'SKIP_TURN' then
+    -- Same gap ROLL was fixed for: without this, skipping before the first
+    -- ADVANCE_ERA (room still 'lobby') would silently advance turn_index,
+    -- reassigning who goes first once the game is later started.
+    if v_room.status <> 'active' then
+      raise exception 'GAME_NOT_ACTIVE';
+    end if;
     declare
       v_turn_syn syndicates%rowtype;
     begin
@@ -1252,7 +1163,6 @@ begin
       delete from transactions where room_id = p_room_id;
       delete from pending_turns where room_id = p_room_id;
       delete from syndicates where room_id = p_room_id; -- cascades to syndicate_members
-      delete from room_decks where room_id = p_room_id;
       update rooms set
         status = 'lobby', phase = 'lobby', era_status = 'active', turn_index = 0,
         round_ending = false, timer_deadline = null, current_era_index = 0
@@ -1283,6 +1193,18 @@ drop function if exists set_era_sequence(uuid, text[]);
 drop function if exists set_starting_cash(uuid, int);
 drop function if exists reset_game(uuid);
 drop table if exists game_state;
+
+-- ----------------------------------------------------------------------
+-- Asset-space investment options are now fixed per-space content
+-- (packages/content/space-options.js), not drawn from a shared shuffled
+-- deck -- room_decks and its supporting functions are dead. Drop them the
+-- same way the legacy game_state table above was retired.
+-- ----------------------------------------------------------------------
+drop function if exists set_room_deck(uuid, text, jsonb);
+drop function if exists deal_cards(jsonb, int, boolean, boolean);
+drop function if exists find_card_index(jsonb, text);
+drop function if exists set_pending_news_card(uuid, int, jsonb);
+drop table if exists room_decks;
 
 -- ----------------------------------------------------------------------
 -- create_room(): the host-facing "new game" flow -- picks the era(s), team

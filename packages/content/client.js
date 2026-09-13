@@ -11,6 +11,12 @@
  * from eras.js (era-briefings.js is a static, non-importing file — see its
  * own header), so eras.js is never reachable from anything that imports
  * this file, and never ships to the browser.
+ *
+ * This file is now guarding two secret-content files, not one: SPACE_OPTIONS
+ * (packages/content/space-options.js, hidden per-space percentages) must
+ * never be added here either — the whole reason SUBMIT_INVESTMENT's
+ * percentages stay hidden pre-bet is that neither this file nor apps/web
+ * ever imports the file that holds them.
  */
 export { ERA_BRIEFINGS } from './era-briefings.js';
 export { BOARD } from './board.js';

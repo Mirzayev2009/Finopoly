@@ -1,9 +1,10 @@
 // Defense-in-depth for the same boundary check-content-boundary.js enforces
 // at the import level: after a production build, grep the emitted bundle
-// for actual investment-card CONTENT from packages/content/eras.js — the
-// full set of card names, e.g. "Lockheed Martin (LMT)" — and fail if any
-// are found. Catches any leak the import-scan missed (a re-export chain, a
-// future refactor). Run after `vite build`, against apps/web/dist.
+// for actual investment-card CONTENT from packages/content/eras.js and
+// space-options.js — the full set of card/option names, e.g.
+// "Lockheed Martin (LMT)" — and fail if any are found. Catches any leak the
+// import-scan missed (a re-export chain, a future refactor). Run after
+// `vite build`, against apps/web/dist.
 //
 // Earlier version of this check grepped for the literal key "percentage"
 // instead, which is far too blunt: legitimate client code has entirely
@@ -19,6 +20,7 @@ import { readdirSync, readFileSync, statSync } from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { ERAS } from '../packages/content/eras.js';
+import { SPACE_OPTIONS } from '../packages/content/space-options.js';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const distDir = path.join(__dirname, '..', 'apps', 'web', 'dist');
@@ -55,8 +57,13 @@ if (files.length === 0) {
 // a parenthetical ticker/qualifier or long enough (15+ chars) to be
 // distinctive; nothing legitimate has a reason to contain e.g. "Lockheed
 // Martin (LMT)" or "Speculative Real Estate Syndicates" as a literal string.
-const cardNames = ERAS.flatMap((era) => era.investments.map((inv) => inv.name))
-  .filter((name) => name.includes('(') || name.length >= 15);
+// Every packages/content name source that carries hidden percentages — add
+// an entry here (not a new copy-pasted extraction) for any future one.
+const NAME_SOURCES = [
+  ERAS.flatMap((era) => era.investments.map((inv) => inv.name)),
+  Object.values(SPACE_OPTIONS).flat().map((opt) => opt.name),
+];
+const cardNames = NAME_SOURCES.flat().filter((name) => name.includes('(') || name.length >= 15);
 
 const hits = [];
 for (const file of files) {

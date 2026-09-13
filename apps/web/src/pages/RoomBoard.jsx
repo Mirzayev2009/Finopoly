@@ -89,20 +89,20 @@ function Die({ value, rolling }) {
 // plays the same way on every screen watching the board, not just whichever
 // device tapped Roll.
 function DiceReadout({ dice, rollId }) {
-  const [shownDice, setShownDice] = useState(dice);
+  const [shownValue, setShownValue] = useState(dice?.[0]);
   const [rolling, setRolling] = useState(false);
 
   useEffect(() => {
     if (!dice) return undefined;
     setRolling(true);
     const tumble = setInterval(() => {
-      setShownDice([1 + Math.floor(Math.random() * 6), 1 + Math.floor(Math.random() * 6)]);
-    }, 80);
+      setShownValue(1 + Math.floor(Math.random() * 6));
+    }, 120);
     const settle = setTimeout(() => {
       clearInterval(tumble);
-      setShownDice(dice);
+      setShownValue(dice[0]);
       setRolling(false);
-    }, 650);
+    }, 1500);
     return () => {
       clearInterval(tumble);
       clearTimeout(settle);
@@ -114,13 +114,12 @@ function DiceReadout({ dice, rollId }) {
   if (!dice) return null;
   return (
     <div className={styles.dice}>
-      <Die value={shownDice?.[0] ?? dice[0]} rolling={rolling} />
-      <Die value={shownDice?.[1] ?? dice[1]} rolling={rolling} />
+      <Die value={shownValue ?? dice[0]} rolling={rolling} />
     </div>
   );
 }
 
-function CenterIdle({ era, turnSyndicate, isHost, busy, onRoll, onSkip }) {
+function CenterIdle({ era, turnSyndicate, isHost, busy, gameActive, onRoll, onSkip }) {
   return (
     <div className={styles.centerIdle}>
       {era && (
@@ -135,19 +134,27 @@ function CenterIdle({ era, turnSyndicate, isHost, busy, onRoll, onSkip }) {
       </span>
       {isHost && (
         <div className={styles.hostControls}>
-          <button type="button" className={styles.rollButton} disabled={busy} onClick={onRoll}>
+          <button type="button" className={styles.rollButton} disabled={busy || !gameActive} onClick={onRoll}>
             ROLL
           </button>
-          <button type="button" className={styles.skipButton} disabled={busy} onClick={onSkip}>
+          <button type="button" className={styles.skipButton} disabled={busy || !gameActive} onClick={onSkip}>
             Skip Turn
           </button>
         </div>
       )}
+      {!gameActive && <span className={styles.turnLabel}>Start an era on Host Control to roll</span>}
     </div>
   );
 }
 
 function CenterCards({ pendingTurn }) {
+  if (!pendingTurn.drawnCards) {
+    return (
+      <div className={styles.centerCards}>
+        <span className={styles.turnLabel}>Loading options…</span>
+      </div>
+    );
+  }
   return (
     <div className={styles.centerCards}>
       <div className={styles.centerCardsRow}>
@@ -245,6 +252,7 @@ export default function RoomBoard() {
               turnSyndicate={turnSyndicate}
               isHost={isHost}
               busy={busy}
+              gameActive={game?.status === 'active'}
               onRoll={() => act('ROLL', {})}
               onSkip={() => act('SKIP_TURN', {})}
             />

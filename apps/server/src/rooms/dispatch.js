@@ -1,38 +1,9 @@
-import { ERAS } from '@estate/content';
+import { SPACE_OPTIONS } from '@estate/content';
 import { supabase } from '../supabase.js';
 import { assembleRoomPayload, assembleStandingsPayload } from './assemblePayload.js';
 import { sendBroadcast, roomTopic, hostTopic, GLOBAL_TOPIC } from './broadcast.js';
 
 const VERSION_CONFLICT_CODE = '40001';
-
-function shuffle(array) {
-  const result = [...array];
-  for (let i = result.length - 1; i > 0; i -= 1) {
-    const j = Math.floor(Math.random() * (i + 1));
-    [result[i], result[j]] = [result[j], result[i]];
-  }
-  return result;
-}
-
-/**
- * Deals a freshly shuffled deck for ONE room's current era -- the Node-side
- * half of ADVANCE_ERA (schema.sql's branch only moves era/status/syndicate
- * bookkeeping; nothing in SQL knows about era content, per room_decks'
- * own comment). Called right after an ADVANCE_ERA action lands, for that
- * room only -- this used to deal the same deck to every room at once.
- * @param {string} roomId
- * @param {string} eraId
- */
-export async function dealRoomDeck(roomId, eraId) {
-  const era = ERAS.find((e) => e.id === eraId);
-  if (!era) throw new Error(`ADVANCE_ERA landed on an unknown era id: ${eraId}`);
-  const { error } = await supabase.rpc('set_room_deck', {
-    p_room_id: roomId,
-    p_era_id: era.id,
-    p_cards: shuffle(era.investments),
-  });
-  if (error) throw error;
-}
 
 function isVersionConflict(error) {
   return error?.code === VERSION_CONFLICT_CODE || error?.message?.includes('VERSION_CONFLICT');
@@ -90,13 +61,15 @@ export async function callRoomAction(roomId, actorId, actionType, payload) {
 }
 
 /**
- * Same retry-once shape as callRoomAction, for set_pending_news_card — the
- * follow-up call ROLL's Node-side handler makes to write in the server-
- * picked news card once it lands on a market-news space.
+ * Same retry-once shape as callRoomAction, for set_pending_investment_cards
+ * — the follow-up call ROLL's Node-side handler makes to write in that
+ * space's fixed investment options once it lands on an ordinary asset
+ * space (Node can't know which space was landed on until ROLL() commits,
+ * so unlike newsCard this can't be pre-picked and passed in up front).
  * @param {string} roomId
- * @param {object} newsCard
+ * @param {Array<object>} cards
  */
-export async function callSetPendingNewsCard(roomId, newsCard) {
+export async function callSetPendingInvestmentCards(roomId, cards) {
   const attempt = async () => {
     const { data: room, error: loadError } = await supabase
       .from('rooms')
@@ -105,10 +78,10 @@ export async function callSetPendingNewsCard(roomId, newsCard) {
       .single();
     if (loadError) throw loadError;
 
-    const { data, error } = await supabase.rpc('set_pending_news_card', {
+    const { data, error } = await supabase.rpc('set_pending_investment_cards', {
       p_room_id: roomId,
       p_expected_version: room.version,
-      p_news_card: newsCard,
+      p_investment_cards: cards,
     });
     if (error) throw error;
     return data;
@@ -120,6 +93,28 @@ export async function callSetPendingNewsCard(roomId, newsCard) {
     if (!isVersionConflict(error)) throw error;
     return attempt();
   }
+}
+
+/**
+ * Looks up the fixed 3 investment options for whichever space a just-landed
+ * ROLL resolved to, and writes them into that room's pending 'awaiting_pick'
+ * turn. Safe no-op if there's no such pending turn (the roll landed
+ * somewhere else) or it's already filled (a retried/duplicate call).
+ * @param {string} roomId
+ */
+export async function fillPendingInvestmentCards(roomId) {
+  const { data: pending, error } = await supabase
+    .from('pending_turns')
+    .select('stage, to_position, drawn_cards')
+    .eq('room_id', roomId)
+    .maybeSingle();
+  if (error) throw error;
+  if (!pending || pending.stage !== 'awaiting_pick' || pending.drawn_cards != null) return;
+
+  const cards = SPACE_OPTIONS[pending.to_position];
+  if (!cards) throw new Error(`ROLL landed on space ${pending.to_position}, which has no SPACE_OPTIONS entry`);
+
+  await callSetPendingInvestmentCards(roomId, cards);
 }
 
 /**

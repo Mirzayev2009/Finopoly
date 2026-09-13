@@ -250,7 +250,7 @@
 }
 
 .dieRolling {
-  animation: dieTumble 300ms ease-in-out infinite;
+  animation: dieTumble 400ms ease-in-out infinite;
 }
 
 .dieSettled {

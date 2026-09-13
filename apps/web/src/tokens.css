@@ -79,7 +79,7 @@
 
   --motion-state: 180ms ease-out;
   --motion-board-step: 110ms ease-out;
-  --motion-dice-tumble: 600ms ease-out;
+  --motion-dice-tumble: 750ms ease-out;
   --motion-card-flip: 700ms ease-out;
   --motion-flip: 400ms ease-out;
 

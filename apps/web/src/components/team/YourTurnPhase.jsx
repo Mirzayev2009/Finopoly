@@ -55,6 +55,14 @@ export default function YourTurnPhase({ pendingTurn, syndicate, isActor, actorNa
     // broadcast lands, so there's nothing to re-enable back into
   }
 
+  if (!pendingTurn.drawnCards) {
+    return (
+      <div className={styles.phase}>
+        <p className={styles.betLabel}>Loading options…</p>
+      </div>
+    );
+  }
+
   return (
     <div className={styles.phase}>
       {pendingTurn.decisionDeadline && (

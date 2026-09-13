@@ -2,7 +2,7 @@ import { NEWS_CARDS } from '@estate/content';
 import { withAuth } from '../../src/auth.js';
 import { supabase } from '../../src/supabase.js';
 import {
-  loadRoomBySlug, callRoomAction, broadcastRoomUpdate, dealRoomDeck,
+  loadRoomBySlug, callRoomAction, broadcastRoomUpdate, fillPendingInvestmentCards,
 } from '../../src/rooms/dispatch.js';
 
 // Mirrors apply_room_action()'s own host/admin gate in schema.sql -- used
@@ -40,20 +40,20 @@ export default withAuth(async (req, res) => {
     : payload;
   await callRoomAction(room.id, req.userId, actionType, effectivePayload);
 
-  // ADVANCE_ERA (schema.sql) only moves era/status/syndicate bookkeeping for
-  // this one room -- nothing in SQL knows about era content (room_decks'
-  // own comment). Deal this room's fresh deck here, same pattern as the
-  // ROLL news-card fill-in above, before the state broadcasts below.
-  if (actionType === 'ADVANCE_ERA') {
-    const { data: freshRoom, error: freshRoomError } = await supabase
-      .from('rooms')
-      .select('status, era_sequence, current_era_index')
-      .eq('id', room.id)
-      .single();
-    if (freshRoomError) throw freshRoomError;
-    if (freshRoom.status === 'active') {
-      const eraId = freshRoom.era_sequence?.[freshRoom.current_era_index];
-      await dealRoomDeck(room.id, eraId);
+  // A ROLL that lands on an ordinary asset space creates a pending_turns row
+  // with drawn_cards left null -- Node can't know which space was landed on
+  // until the call above commits, so unlike the news-card pre-pick this has
+  // to be a follow-up. If this throws, still fall through to the broadcast
+  // below so every client sees the true DB state (a pending turn genuinely
+  // waiting on its cards, recoverable via the host's existing
+  // CANCEL_PENDING_TURN) rather than nothing at all, then rethrow so the
+  // failure is still visible to whoever made this request.
+  if (actionType === 'ROLL') {
+    try {
+      await fillPendingInvestmentCards(room.id);
+    } catch (fillError) {
+      await broadcastRoomUpdate(room.id);
+      throw fillError;
     }
   }
 
